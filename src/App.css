@@ -15,3 +15,21 @@
 .bg-grid-glow {
   background: radial-gradient(circle at center, rgba(37, 99, 235, 0.15) 0%, transparent 70%);
 }
+
+body {
+  /* Mencegah refresh saat ditarik ke bawah */
+  overscroll-behavior-y: contain;
+  /* Mencegah seleksi teks yang tidak sengaja */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  width: 3px;
+  border-radius: 100px;
+  background-color: rgba(240, 240, 240, 0.247);
+}
