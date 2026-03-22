@@ -42,7 +42,7 @@ export default function ScannerPage() {
 
   const state = useScannerState();
   const {
-    msg, setMsg,
+    setMsg,
     status, setStatus,
     activeTab, setActiveTab,
     showLogoutConfirm, setShowLogoutConfirm,
@@ -69,13 +69,12 @@ export default function ScannerPage() {
     selectedAnnouncement, setSelectedAnnouncement,
     showLoginQrScanner, setShowLoginQrScanner,
     loginQrStatus, setLoginQrStatus,
-    loginQrMessage, setLoginQrMessage,
+    setLoginQrMessage,
     scannerActive, setScannerActive,
-    hasFetchedHome,
   } = state;
 
   useEffect(() => {
-    if (!token) {
+    if (!token || showLoginQrScanner) {
       navigate('/', { replace: true });
       return;
     }
@@ -394,10 +393,10 @@ export default function ScannerPage() {
   const MENU_ITEMS = [
     { id: 'tugas',       label: 'Tugas',        icon: BookOpen,    color: 'from-blue-600 to-blue-500',    badge: '3' },
     { id: 'pengumuman',  label: 'Pengumuman',   icon: Megaphone,   color: 'from-orange-600 to-orange-500', badge: '2' },
-    { id: 'berita',      label: 'Berita',       icon: Newspaper,   color: 'from-emerald-600 to-emerald-500', badge: null },
-    { id: 'kelulusan',   label: 'Kelulusan',    icon: GraduationCap, color: 'from-purple-600 to-purple-500', badge: null },
-    { id: 'osis',        label: 'OSIS',         icon: Users,       color: 'from-rose-600 to-rose-500',    badge: null },
-    { id: 'ulasan',      label: 'Ulasan',       icon: Star,        color: 'from-amber-600 to-amber-500',  badge: null },
+    { id: 'berita',      label: 'Berita',       icon: Newspaper,   color: 'from-emerald-600 to-emerald-500', badge: undefined },
+    { id: 'kelulusan',   label: 'Kelulusan',    icon: GraduationCap, color: 'from-purple-600 to-purple-500', badge: undefined },
+    { id: 'osis',        label: 'OSIS',         icon: Users,       color: 'from-rose-600 to-rose-500',    badge: undefined },
+    { id: 'ulasan',      label: 'Ulasan',       icon: Star,        color: 'from-amber-600 to-amber-500',  badge: undefined },
     { 
       id: 'login-qr', 
       label: 'Login QR', 
@@ -465,16 +464,25 @@ export default function ScannerPage() {
         setLoginQrStatus('scanning');
         await reader.start(
           { facingMode: "environment" },
-          { fps: 24, qrbox: { width: 340, height: 340 }, aspectRatio: 1.0 },
+          { 
+            fps: 24, // Tingkatkan ke 30 fps untuk respon lebih cepat
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              // Membuat kotak scan responsif (80% dari lebar layar)
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const qrboxSize = Math.floor(minEdge * 0.8);
+              return { width: qrboxSize, height: qrboxSize };
+            },
+            aspectRatio: 1.0 
+          },
           async (decodedText) => {
+            // Hentikan scanner segera setelah terdeteksi
             await reader.stop();
             setLoginQrStatus('processing');
+            // Gunakan pembersihan teks (trim)
             await handleExternalLogin(decodedText.trim());
           },
-          (err) => {
-            // Optional: log error scan kecil (tidak perlu ubah status)
-            console.log("Scan error kecil:", err);
-          }
+          // Kosongkan callback failure agar console bersih
+          () => {} 
         );
       } catch (err) {
         console.error("Gagal memulai scanner:", err);
@@ -492,8 +500,7 @@ export default function ScannerPage() {
   }, [showLoginQrScanner, scannerActive]);
 
   const handleExternalLogin = async (decodedSessionId: string) => {
-    setStatus({type: 'processing', msg: 'Menghubungkan ke server...'});
-    try {
+      setStatus({ type: 'loading', msg: 'Menghubungkan ke server...' });    try {
       // Kita mengirim sessionId hasil scan ke backend
       const res = await axios.post(
         `${BASE_URL_SCHOOL}/scan-qr/login-qr-new`,
@@ -545,7 +552,7 @@ export default function ScannerPage() {
             searchQuery={searchQuery}
             handleClearSearch={handleClearSearch}
             onMenuClick={(id) => setActiveMenu(id)}
-            token={token}
+            token={token || undefined}
             setShowLoginQrScanner={setShowLoginQrScanner}
             setLoginQrStatus={setLoginQrStatus}
             setScannerActive={setScannerActive}
@@ -783,7 +790,11 @@ export default function ScannerPage() {
         
           {/* Area scanner */}
           <div className="relative w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden border-4 border-cyan-500/30 shadow-2xl mb-8">
-            <div id="login-qr-reader" className="absolute inset-0 w-full h-full bg-black" />
+            {/* Di dalam area scanner Login QR */}
+            <div id="login-qr-reader" className="absolute inset-0 w-full h-full bg-black">
+              {/* Animasi Garis Scan */}
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-400 shadow-[0_0_15px_cyan] animate-[scan_2s_linear_infinite] z-10" />
+            </div>
 
             {/* Tampilan awal (idle) - sebelum mulai scan */}
             {loginQrStatus === 'idle' && (

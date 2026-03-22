@@ -1,15 +1,19 @@
 // src/components/HomePage.tsx
-import { useState } from 'react';
 import {
-  BookOpen, Megaphone, Newspaper, GraduationCap, Users, Star, Search, User2
+    BookOpen,
+    GraduationCap,
+    Megaphone, Newspaper,
+    Search,
+    Star,
+    User2,
+    Users
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale/id';
+import { useState } from 'react';
 import AnnouncementContent from './AnnouncementContent';
-import NewsContent from './NewsContent';
-import TugasContent from './TugasContent';
 import KelulusanContent from './KelulusanContent';
+import NewsContent from './NewsContent';
 import OsisContent from './OsisContent';
+import TugasContent from './TugasContent';
 import UlasanContent from './UlasanContent';
 
 const MENU_ITEMS = [

@@ -2,7 +2,7 @@
 import { AlertCircle, CheckCircle } from 'lucide-react';
 
 interface ScanViewProps {
-  status: { type: 'success' | 'error' | 'loading'; msg: string } | null;
+  status: any;
 }
 
 export default function ScanView({ status }: ScanViewProps) {

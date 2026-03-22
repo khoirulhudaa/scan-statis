@@ -1,17 +1,8 @@
 // src/components/home/ServiceMenuGrid.tsx
-import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface MenuItem {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  color: string;
-  badge?: string;
-}
-
 interface ServiceMenuGridProps {
-  filteredMenuItems?: MenuItem[];
+  filteredMenuItems?: any[];
   loadingData: Record<string, boolean>;
   searchQuery: string;
   handleClearSearch: () => void;
@@ -38,10 +29,10 @@ export default function ServiceMenuGrid({
   return (
     <div className="w-full">
       <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-500 mb-4">
-        Layanan {searchQuery ? `(${filteredMenuItems.length} ditemukan)` : ''}
+        Layanan {searchQuery ? `(${filteredMenuItems?.length} ditemukan)` : ''}
       </p>
 
-      {filteredMenuItems.length === 0 && searchQuery ? (
+      {filteredMenuItems?.length === 0 && searchQuery ? (
         <div className="w-full text-center py-10 text-slate-500 text-sm">
           Tidak menemukan "{searchQuery}"
           <br />
@@ -54,7 +45,7 @@ export default function ServiceMenuGrid({
         </div>
       ) : (
         <div className="w-full grid grid-cols-4 gap-5">
-          {filteredMenuItems.map((item) => {
+          {filteredMenuItems?.map((item) => {
             const Icon = item.icon;
             const isLoading = loadingData[item.id];
 
@@ -91,7 +82,7 @@ export default function ServiceMenuGrid({
 
                   {item.badge && !isLoading && (
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-[8px] font-black rounded-full flex items-center justify-center shadow">
-                      {item.badge}
+                      {item?.badge}
                     </span>
                   )}
                 </div>

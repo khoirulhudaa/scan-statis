@@ -1,6 +1,3 @@
-// src/components/home/WelcomeBanner.tsx
-import { GraduationCap } from 'lucide-react'; // atau icon lain jika perlu
-
 interface WelcomeBannerProps {
   userProfile: any;
   quickStats: Array<{ label: string; value: string | number; sub: string }>;
