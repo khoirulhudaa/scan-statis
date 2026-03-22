@@ -1,33 +1,37 @@
 import axios from 'axios';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale/id';
 import { Html5Qrcode } from 'html5-qrcode';
 import {
-  AlertCircle,
-  BarcodeIcon,
-  Bell,
   BookOpen,
-  CheckCircle,
-  ClipboardList,
-  Download,
-  Eye,
-  EyeOff,
   GraduationCap,
-  Home,
-  ListX,
   LogOut,
   Megaphone,
   Newspaper,
-  Printer,
-  ScanIcon,
-  Search,
+  QrCode,
   Star,
-  Trophy,
-  User,
-  Users,
+  Users
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import Barcode from 'react-barcode';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
+import AnnouncementContent from './cmoponents/AnnouncementContent';
+import BarcodeView from './cmoponents/barcodeView';
+import BottomTabNavigator from './cmoponents/BottomTabNavigator';
+import HistoryView from './cmoponents/HistoryView';
+import HomeHeader from './cmoponents/HomeHeader';
+import KelulusanContent from './cmoponents/KelulusanContent';
+import LatestAnnouncements from './cmoponents/LatestAnnouncements';
+import NewsContent from './cmoponents/NewsContent';
+import OsisContent from './cmoponents/OsisContent';
+import ProfileView from './cmoponents/ProfileView';
+import ScanView from './cmoponents/ScanView';
+import ServiceMenuGrid from './cmoponents/ServiceMenuGrid';
+import TugasContent from './cmoponents/TugasContent';
+import UlasanContent from './cmoponents/UlasanContent';
+import WelcomeBanner from './cmoponents/WelcomeBanner';
+import { useScannerState } from './hooks/useScannerState';
+import { useSchoolHomeData } from './hooks/useSchoolHomeData';
 
 const BASE_URL_SCHOOL = 'https://be-school.kiraproject.id';
 const BASE_URL_PERPUS = 'https://be-perpus.kiraproject.id';
@@ -36,30 +40,40 @@ export default function ScannerPage() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
 
-  const [status, setStatus] = useState<{ type: 'success' | 'error' | 'loading'; msg: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'scan' | 'barcode' | 'history' | 'profile'>('scan');
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [barcodeTab, setBarcodeTab] = useState<'nis' | 'nisn'>('nis');
-  const [history, setHistory] = useState<any[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [form, setForm] = useState<any>({
-    name: '',
-    email: '',
-    nis: '',
-    nisn: '',
-    nip: '',
-    oldPassword: '',
-    newPassword: '',
-  });
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const [photoLoading, setPhotoLoading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(() =>
-    JSON.parse(localStorage.getItem('user_profile') || '{}')
-  );
-  
+  const state = useScannerState();
+  const {
+    msg, setMsg,
+    status, setStatus,
+    activeTab, setActiveTab,
+    showLogoutConfirm, setShowLogoutConfirm,
+    barcodeTab, setBarcodeTab,
+    history, setHistory,
+    loadingHistory, setLoadingHistory,
+    showOldPassword, setShowOldPassword,
+    showNewPassword, setShowNewPassword,
+    form, setForm,
+    loadingProfile, setLoadingProfile,
+    photoLoading, setPhotoLoading,
+    preview, setPreview,
+    userProfile, setUserProfile,
+    schoolId, setSchoolId,
+    announcements, setAnnouncements,
+    news, setNews,
+    tugas, setTugas,
+    osisData, setOsisData,
+    alumniData, setAlumniData,
+    comments, setComments,
+    avgRating, setAvgRating,
+    loadingData, setLoadingData,
+    errorData, setErrorData,
+    selectedAnnouncement, setSelectedAnnouncement,
+    showLoginQrScanner, setShowLoginQrScanner,
+    loginQrStatus, setLoginQrStatus,
+    loginQrMessage, setLoginQrMessage,
+    scannerActive, setScannerActive,
+    hasFetchedHome,
+  } = state;
+
   useEffect(() => {
     if (!token) {
       navigate('/', { replace: true });
@@ -384,169 +398,264 @@ export default function ScannerPage() {
     { id: 'kelulusan',   label: 'Kelulusan',    icon: GraduationCap, color: 'from-purple-600 to-purple-500', badge: null },
     { id: 'osis',        label: 'OSIS',         icon: Users,       color: 'from-rose-600 to-rose-500',    badge: null },
     { id: 'ulasan',      label: 'Ulasan',       icon: Star,        color: 'from-amber-600 to-amber-500',  badge: null },
+    { 
+      id: 'login-qr', 
+      label: 'Login QR', 
+      icon: QrCode,                 // import { QrCode } from 'lucide-react'
+      color: 'from-green-600 to-green-500', 
+      badge: null 
+    },
   ];
-  
-  const ANNOUNCEMENTS = [
-    { id: 1, title: 'Ujian Tengah Semester Genap 2025', date: '20 Mar 2026', type: 'Penting', urgent: true },
-    { id: 2, title: 'Libur Hari Raya Idul Fitri 1447 H', date: '18 Mar 2026', type: 'Informasi', urgent: false },
-    { id: 3, title: 'Pendaftaran Ekstrakulikuler Baru', date: '15 Mar 2026', type: 'Kegiatan', urgent: false },
-  ];
-  
+
   const QUICK_STATS = [
-    { label: 'Hadir', value: '22', sub: 'hari ini' },
-    { label: 'Tugas', value: '3', sub: 'belum dikumpul' },
-    { label: 'Nilai', value: '87', sub: 'rata-rata' },
+    { label: 'Hadir', value: history ? history.filter((d) => d.status === 'Terlambat' || d.status === 'Hadir').length : '0', sub: 'hari ini' },
+    { label: 'Tugas', value: tugas ? tugas.length : '0', sub: 'belum dikumpul' },
+    { label: 'Nilai', value: '-', sub: 'rata-rata' },
   ];
+
+  // ────────────────────────────────────────────────
+  // Fetch semua data penting saat component mount / home active
+  // ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!token || !userProfile) return;
+
+    // Ambil schoolId dari profile (asumsi sudah ada)
+    const sid = userProfile.schoolId || userProfile.school_id;
+    if (sid) {
+      setSchoolId(Number(sid));
+    } else {
+      console.warn("schoolId tidak ditemukan di userProfile");
+    }
+
+    // Fetch hanya saat tab home aktif
+  }, [activeTab === 'home', token, userProfile]);
+
+  const { loadHomeData } = useSchoolHomeData();
+  const hasFetched = useRef(false);
+
+  useEffect(() => {
+  if (activeTab !== 'home' || !schoolId || !token) {
+    hasFetched.current = false;
+    return;
+  }
+
+  if (hasFetched.current) return;
+  hasFetched.current = true;
+
+  loadHomeData(schoolId, token, {
+    setAnnouncements,
+    setNews,
+    setTugas,
+    setOsisData,
+    setAlumniData,
+    setComments,
+    setAvgRating,
+    setLoadingData,
+    setErrorData,
+  }).catch(console.error);
+}, [activeTab, schoolId, token, loadHomeData]);
+
+  useEffect(() => {
+    if (!showLoginQrScanner || !scannerActive) return;
+
+    const reader = new Html5Qrcode("login-qr-reader");
+
+    const startScanning = async () => {
+      try {
+        setLoginQrStatus('scanning');
+        await reader.start(
+          { facingMode: "environment" },
+          { fps: 24, qrbox: { width: 340, height: 340 }, aspectRatio: 1.0 },
+          async (decodedText) => {
+            await reader.stop();
+            setLoginQrStatus('processing');
+            await handleExternalLogin(decodedText.trim());
+          },
+          (err) => {
+            // Optional: log error scan kecil (tidak perlu ubah status)
+            console.log("Scan error kecil:", err);
+          }
+        );
+      } catch (err) {
+        console.error("Gagal memulai scanner:", err);
+        setLoginQrStatus('error');
+        setLoginQrMessage("Gagal membuka kamera. Pastikan izin kamera diizinkan.");
+      }
+    };
+
+    startScanning();
+
+    return () => {
+      reader.stop().catch((err) => console.log("Stop scanner error:", err));
+      setScannerActive(false); // reset agar tidak nyala otomatis lagi
+    };
+  }, [showLoginQrScanner, scannerActive]);
+
+  const handleExternalLogin = async (decodedSessionId: string) => {
+    setStatus({type: 'processing', msg: 'Menghubungkan ke server...'});
+    try {
+      // Kita mengirim sessionId hasil scan ke backend
+      const res = await axios.post(
+        `${BASE_URL_SCHOOL}/scan-qr/login-qr-new`,
+        { qrCodeData: decodedSessionId }, // Session ID dari layar komputer
+        { headers: { Authorization: `Bearer ${token}` } } // Token HP Siswa/Guru
+      );
+
+      if (res.data.success) {
+        setStatus({type: 'success', msg: 'Login Berhasil! Cek layar komputer.'});
+        setMsg("Login Terkirim!");
+      }
+    } catch (err) {
+      setStatus({type: 'error', msg: 'Gagal menghubungkan login.'});
+      setMsg("Gagal verifikasi.");
+    }
+  };
 
   function HomePage({ userProfile = { name: 'Ahmad Fauzi', role: 'siswa', kelas: 'XII IPA 2' } }: any) {
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const selectedMenu = MENU_ITEMS.find(m => m.id === activeMenu);
+
+    // Filter menu berdasarkan pencarian
+    const filteredMenuItems = MENU_ITEMS.filter(item =>
+      item.label.toLowerCase().includes(searchQuery.toLowerCase().trim())
+    );
+
+    const handleClearSearch = () => {
+      setSearchQuery('');
+    };
   
     return (
       <div className="w-full h-full overflow-auto p-4 md:p-6">
         {/* ── TOP SEARCH BAR ─────────────────────────── */}
-        <div className="relative top-0 z-[999] bg-[#020617]/90 border-b border-white/[0.04]">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 flex items-center bg-slate-800/60 border border-white/[0.06] rounded-xl px-3.5 py-2.5 gap-2">
-              <Search size={14} className="text-slate-500 shrink-0" />
-              <span className="text-slate-500 text-[11px] font-medium">Cari tugas, berita, atau pengumuman...</span>
-            </div>
-            <div className="relative w-9 h-9 bg-slate-800/60 border border-white/[0.06] rounded-xl flex items-center justify-center shrink-0">
-              <Bell size={15} className="text-slate-300" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full" />
-            </div>
-          </div>
-        </div>
+        <HomeHeader
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          handleClearSearch={handleClearSearch}
+          onProfileClick={() => setActiveTab('profile')}
+        />
   
         <div className="pt-4 space-y-5">
-  
-          {/* ── BANNER / PROMO CARD ─────────────────── */}
-          <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-5 shadow-xl shadow-blue-900/30">
-            {/* grid texture */}
-            <div className="absolute inset-0 opacity-[0.06]"
-              style={{
-                backgroundImage: `linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`,
-                backgroundSize: '24px 24px',
-              }}
-            />
-            <div className="relative z-10 flex justify-between items-start">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-blue-200 mb-1">Selamat Datang 👋</p>
-                <h2 className="text-lg font-black leading-tight">
-                  {userProfile.name || 'Siswa'}
-                </h2>
-                <p className="text-[10px] text-blue-200 mt-0.5 uppercase tracking-wider font-medium">
-                  {userProfile.kelas || userProfile.role}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-[9px] text-blue-200 uppercase tracking-wider">Semester</p>
-                <p className="text-2xl font-black leading-none">2</p>
-                <p className="text-[9px] text-blue-200 uppercase tracking-wider">2025/2026</p>
-              </div>
-            </div>
-  
-            {/* quick stats */}
-            <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
-              {QUICK_STATS.map((s) => (
-                <div key={s.label} className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center">
-                  <p className="text-base font-black">{s.value}</p>
-                  <p className="text-[8px] text-blue-100 font-bold uppercase tracking-wide leading-tight">{s.label}</p>
-                  <p className="text-[7px] text-blue-200/70 mt-0.5">{s.sub}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-  
-          {/* ── MENU GRID ───────────────────────────── */}
-          <div className='w-full'>
-            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 mb-3">Layanan</p>
-            <div className="w-full grid grid-cols-4 gap-5">
-              {MENU_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveMenu(item.id)}
-                    className="w-full flex flex-col items-center gap-2 active:scale-[0.94] transition-transform"
-                  >
-                    <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center shadow-lg`}>
-                      <Icon size={22} className="text-white" />
-                      {item.badge && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-[8px] font-black rounded-full flex items-center justify-center shadow">
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] font-bold text-slate-300 text-center leading-tight">{item.label}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-  
-          {/* ── PENGUMUMAN TERBARU ───────────────────── */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500">Pengumuman Terbaru</p>
-              <button className="text-[9px] text-blue-400 font-bold uppercase tracking-wider">Lihat Semua</button>
-            </div>
-  
-            <div className="space-y-2.5">
-              {ANNOUNCEMENTS.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-3 bg-slate-900/50 border border-white/[0.05] rounded-2xl p-3.5"
-                >
-                  <div className={`mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.urgent ? 'bg-red-500/20' : 'bg-slate-700/50'}`}>
-                    {item.urgent
-                      ? <AlertCircle size={15} className="text-red-400" />
-                      : <CheckCircle size={15} className="text-slate-400" />
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold leading-tight truncate">{item.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${item.urgent ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
-                        {item.type}
-                      </span>
-                      <span className="text-[8px] text-slate-500">{item.date}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-  
-          {/* ── MOTIVASI / INFO CARD ─────────────────── */}
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800/80 border border-white/[0.05] rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center shrink-0">
-              <Trophy size={18} className="text-amber-400" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">Tips Belajar</p>
-              <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-                Konsisten belajar 30 menit sehari lebih efektif daripada belajar 3 jam sekali seminggu.
-              </p>
-            </div>
-          </div>
+          <WelcomeBanner userProfile={userProfile} quickStats={QUICK_STATS} />
+
+          <ServiceMenuGrid
+            filteredMenuItems={filteredMenuItems}
+            loadingData={loadingData}
+            searchQuery={searchQuery}
+            handleClearSearch={handleClearSearch}
+            onMenuClick={(id) => setActiveMenu(id)}
+            token={token}
+            setShowLoginQrScanner={setShowLoginQrScanner}
+            setLoginQrStatus={setLoginQrStatus}
+            setScannerActive={setScannerActive}
+            setLoginQrMessage={setLoginQrMessage}
+          />
+
+          <LatestAnnouncements
+            announcements={announcements}
+            loading={loadingData.announcements}
+            error={errorData.announcements}
+            onSelectAnnouncement={setSelectedAnnouncement}
+          />
         </div>
+
+        {selectedAnnouncement && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
+              onClick={() => setSelectedAnnouncement(null)}
+            />
+            <div className="relative w-full max-w-lg max-h-[90vh] bg-slate-900 border border-white/10 rounded-3xl p-6 animate-in zoom-in-95">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-black leading-tight">{selectedAnnouncement.title}</h3>
+                <button 
+                  onClick={() => setSelectedAnnouncement(null)}
+                  className="text-slate-400 hover:text-white text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {selectedAnnouncement.content || selectedAnnouncement.deskripsi || 'Detail pengumuman belum tersedia.'}
+                </p>
+                
+                <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+                  <span className="px-3 py-1 bg-slate-700 rounded-full">
+                    {selectedAnnouncement.category || 'Umum'}
+                  </span>
+                  <span>
+                    {format(new Date(selectedAnnouncement.publishDate || selectedAnnouncement.tanggal), 'dd MMMM yyyy', { locale: id })}
+                  </span>
+                  {selectedAnnouncement.type && (
+                    <span className={`px-3 py-1 rounded-full ${selectedAnnouncement.urgent ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                      {selectedAnnouncement.type}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <button
+                onClick={() => setSelectedAnnouncement(null)}
+                className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-sm font-black uppercase tracking-wider transition"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
   
         {/* ── MODAL MENU ──────────────────────────────── */}
         {activeMenu && (
-          <div className="fixed w-full md:w-[32.3vw] mx-auto inset-0 z-50 flex items-end justify-center">
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
             <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
               onClick={() => setActiveMenu(null)}
             />
-            <div className="relative w-full bg-slate-900 border-t border-white/10 rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-200 pb-32">
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-400 mb-1">
-                {MENU_ITEMS.find(m => m.id === activeMenu)?.label}
+            <div className="relative w-full max-w-lg bg-slate-900 border-t border-white/10 rounded-t-3xl p-6 pb-10 animate-in slide-in-from-bottom duration-300">
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+
+              <h3 className="text-lg font-black text-center mb-1">
+                {selectedMenu?.label || 'Fitur'}
+              </h3>
+              <p className="text-xs text-slate-400 text-center mb-6">
+                {loadingData[activeMenu!] ? 'Memuat...' : ''}
               </p>
-              <p className="text-slate-500 text-[10px]">Fitur ini sedang dalam pengembangan</p>
+
+              <div className="max-h-[60vh] overflow-y-auto px-1">
+                {activeMenu === 'pengumuman' && (
+                  <AnnouncementContent items={announcements} loading={loadingData.announcements} error={errorData.announcements} />
+                )}
+                {activeMenu === 'berita' && (
+                  <NewsContent items={news} loading={loadingData.news} error={errorData.news} />
+                )}
+                {activeMenu === 'tugas' && (
+                  <TugasContent items={tugas} loading={loadingData.tugas} error={errorData.tugas} />
+                )}
+                {activeMenu === 'kelulusan' && (
+                  <KelulusanContent items={alumniData} loading={loadingData.kelulusan} error={errorData.kelulusan} />
+                )}
+                {activeMenu === 'osis' && (
+                  <OsisContent data={osisData} loading={loadingData.osis} error={errorData.osis} />
+                )}
+                {activeMenu === 'ulasan' && (
+                  <UlasanContent 
+                    comments={comments} 
+                    avgRating={avgRating} 
+                    loading={loadingData.ulasan} 
+                    error={errorData.ulasan} 
+                    schoolId={schoolId}
+                    token={token}
+                    onCommentAdded={(newComment: any) => setComments(prev => [newComment, ...prev])}
+                  />
+                )}
+              </div>
+
               <button
                 onClick={() => setActiveMenu(null)}
-                className="mt-5 w-full py-3 bg-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                className="mt-6 w-full py-3.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-sm font-black uppercase tracking-widest transition"
               >
                 Tutup
               </button>
@@ -574,9 +683,6 @@ export default function ScannerPage() {
       <div className="absolute top-0 h-[8vh] left-0 right-0 md:w-[32.3vw] mx-auto z-20 pointer-events-none">
         <div className="w-screen md:w-full h-full mx-auto flex items-center bg-slate-900 md:xp-6 px-4 border border-white/[0.05] shadow-2xl pointer-events-auto">
           <div className="flex w-[90%] border-r border-white/10 items-center gap-3 h-full">
-            {/* <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-xs shadow-lg shadow-blue-500/20">
-              {(userProfile.name || userProfile.nama)?.charAt(0) || '?'}
-            </div> */}
             <div className="leading-none w-[82%] h-full mt-[4px] flex flex-col items-start justify-center">
               <h3 className="text-sm font-bold w-full truncate uppercase tracking-wider">
                 {userProfile.name || userProfile.nama || 'User'}
@@ -601,351 +707,40 @@ export default function ScannerPage() {
       
       {/* MASTER WRAPER */}
       <div className='relative w-screen md:w-[32.3vw] h-[82vh] my-auto mx-auto overflow-auto'>
-          {/* Konten sesuai tab */}
-          {activeTab === 'scan' && (
-            <div className="flex-1 flex h-full overflow-hidden items-center justify-center p-0 z-10 relative">
-              <div className="relative w-full h-full">
-                {/* Scanner Brackets */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] z-20 pointer-events-none">
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-blue-500 rounded-tl-xl" />
-                  <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-blue-500 rounded-tr-xl" />
-                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-blue-500 rounded-bl-xl" />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-blue-500 rounded-br-xl" />
-                  <div className="w-full h-[1px] bg-blue-500/50 absolute top-0 animate-[scan_2s_linear_infinite]" />
-                </div>
+        {/* Konten tab */}
+        {activeTab === 'scan'    && <ScanView status={status} />}
+        {activeTab === 'barcode' && (
+          <BarcodeView
+            userProfile={userProfile}
+            barcodeTab={barcodeTab}
+            setBarcodeTab={setBarcodeTab}
+            downloadBarcode={downloadBarcode}
+            printBarcode={printBarcode}
+          />
+        )}
+        {activeTab === 'home'    && <HomePage userProfile={userProfile} />}
+        {activeTab === 'history' && (
+          <HistoryView history={history} loadingHistory={loadingHistory} />
+        )}
+        {activeTab === 'profile' && (
+          <ProfileView
+            userProfile={userProfile}
+            preview={preview}
+            form={form}
+            setForm={setForm}
+            showOldPassword={showOldPassword}
+            setShowOldPassword={setShowOldPassword}
+            showNewPassword={showNewPassword}
+            setShowNewPassword={setShowNewPassword}
+            handlePhotoChange={handlePhotoChange}
+            handleUpdateProfile={handleUpdateProfile}
+            loadingProfile={loadingProfile}
+            photoLoading={photoLoading}
+          />
+        )}
 
-                <div id="reader" className="w-full h-full bg-black" />
-
-                {status && (
-                  <div
-                    className={`absolute h-screen inset-0 z-30 flex flex-col items-center justify-center p-8 text-center backdrop-blur-3xl transition-all duration-500 ${
-                      status.type === 'success' ? 'bg-blue-500' : 'bg-slate-900/95'
-                    }`}
-                  >
-                    <div className="w-24 h-24 rounded-full flex items-center justify-center mb-4 bg-white/10">
-                      {status.type === 'loading' ? (
-                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <span className="text-4xl text-white">
-                          {status.type === 'success' ? <CheckCircle size={60} /> : <AlertCircle size={60} />}
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-bold uppercase tracking-[0.2em] text-sm mb-8">{status.msg}</p>
-                    {status.type !== 'loading' && (
-                      <button
-                        onClick={() => window.location.reload()}
-                        className="cursor-pointer active:scale-[0.97] hover:brightness-80 bg-white text-black px-10 py-3 rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-xl"
-                      >
-                        Kembali
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <div className="absolute top-12 left-0 right-0 text-center z-20 pointer-events-none">
-                  <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.6em]">Scanner Active</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'barcode' && (
-            <div className="w-full overflow-hidden p-4 md:p-6 h-full flex flex-col items-center justify-center z-10 relative">
-              {userProfile.role === 'siswa' && (
-                <div className="w-full grid grid-cols-4 mb-10 border border-white/10 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setBarcodeTab('nis')}
-                    className={`cursor-pointer hover:bg-white/10 active:scale-[0.98] px-6 py-3 text-xs font-bold uppercase tracking-wider ${
-                      barcodeTab === 'nis' ? 'bg-blue-600 text-white' : 'text-slate-400'
-                    }`}
-                  >
-                    NIS
-                  </button>
-                  <button
-                    onClick={() => setBarcodeTab('nisn')}
-                    className={`cursor-pointer hover:bg-white/10 border-r border-white/10 active:scale-[0.98] px-6 py-3 text-xs font-bold uppercase tracking-wider ${
-                      barcodeTab === 'nisn' ? 'bg-blue-600 text-white' : 'text-slate-400'
-                    }`}
-                  >
-                    NISN
-                  </button>
-                  <button
-                    onClick={downloadBarcode}
-                    className="cursor-pointer flex justify-center items-center hover:bg-white/10 border-r border-white/10 active:scale-[0.98] px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-400"
-                  >
-                    <Download size={19} />
-                  </button>
-                  <button
-                    onClick={printBarcode}
-                    className="cursor-pointer flex justify-center items-center hover:bg-white/10 active:scale-[0.98] px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-400"
-                  >
-                    <Printer size={17.5} />
-                  </button>
-                </div>
-              )}
-
-              <p className="text-white text-sm uppercase tracking-widest mb-6">
-                {userProfile.role === 'siswa' ? `Barcode ${barcodeTab.toUpperCase()}` : 'Barcode NIP'}
-              </p>
-
-              <div id="barcode-container" className="bg-white w-max rounded-xl">
-                <Barcode
-                  value={
-                    userProfile.role === 'siswa'
-                      ? barcodeTab === 'nis'
-                        ? userProfile.nis
-                        : userProfile.nisn
-                      : userProfile.nip
-                  }
-                  height={100}
-                  width={3}
-                  renderer="canvas"
-                  fontSize={18}
-                  margin={10}
-                />
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'home' && (
-            <HomePage userProfile={userProfile} />
-          )}
-
-          {activeTab === 'history' && (
-            <div
-              className={`w-full h-full flex mx-auto justify-start items-center flex-col p-4 md:p-6 z-10 ${
-                history.length > 1 ? 'overflow-y-auto' : 'overflow-hidden'
-              }`}
-            >
-              {loadingHistory ? (
-                <div className="flex justify-center p-10">
-                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <div className="w-full h-full flex flex-col gap-3">
-                  {history.length > 0 ? (
-                    history.map((item, i) => (
-                      <div
-                        key={i}
-                        className="w-full bg-slate-900/50 border border-white/5 p-4 rounded-2xl flex justify-between items-center"
-                      >
-                        <div>
-                          <p className="text-[10px] text-slate-500 uppercase font-bold">{item.date}</p>
-                          <p className="text-xs font-bold mt-1">{item.time} WIB</p>
-                        </div>
-                        <div className="text-right">
-                          <span
-                            className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-tighter ${
-                              item.isLate ? 'bg-orange-500/20 text-orange-500' : 'bg-green-500/20 text-green-400'
-                            }`}
-                          >
-                            {item.isLate ? 'Terlambat' : item.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="w-full flex flex-col pb-20 justify-center items-center text-center h-full">
-                      <ListX className="text-slate-300 mb-10" size={28} />
-                      <p className="text-center text-slate-500 text-md">Belum ada data kehadiran bulan ini</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'profile' && (
-            <div className="w-full h-full flex flex-col items-center justify-start z-10 overflow-y-auto pb-32">
-              <div className="w-full p-4 md:p-6">
-                <div className="flex items-center gap-4 mb-6 border-b border-white/5 pb-6">
-                  <div className="relative group">
-                    <img
-                      src={preview || userProfile.photoUrl || 'https://via.placeholder.com/150'}
-                      className="w-16 h-16 rounded-2xl object-cover border border-white/10"
-                      alt="Profile"
-                    />
-                    <label className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center cursor-pointer shadow-lg hover:bg-blue-500 transition-colors">
-                      <Download size={12} className="text-white rotate-180" />
-                      <input type="file" className="hidden" onChange={handlePhotoChange} />
-                    </label>
-                  </div>
-                  <div>
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Profil Pengguna</h4>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">
-                      {userProfile.role || 'Member'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <div className="group">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 ml-1">Nama</p>
-                    <input
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="w-full px-4 py-4 rounded-xl bg-white/[0.03] border border-white/5 focus:border-blue-500/50 outline-none text-xs transition-all"
-                      placeholder="Nama Lengkap"
-                    />
-                  </div>
-
-                  <div className="group">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 ml-1">Email</p>
-                    <input
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      className="w-full px-4 py-4 rounded-xl bg-white/[0.03] border border-white/5 focus:border-blue-500/50 outline-none text-xs transition-all"
-                      placeholder="Email Sekolah"
-                    />
-                  </div>
-
-                  <div className="relative group w-full">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 ml-1">Password Lama</p>
-                    <input
-                      type={showOldPassword ? 'text' : 'password'}
-                      value={form.oldPassword || ''}
-                      onChange={(e) => setForm({ ...form, oldPassword: e.target.value })}
-                      className="w-full px-4 py-4 rounded-xl bg-white/[0.03] border border-white/5 text-xs outline-none"
-                      placeholder="Masukkan password lama"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowOldPassword(!showOldPassword)}
-                      className="absolute right-3 top-[30px] cursor-pointer hover:brightness-75 active:scale-[0.98] text-slate-400 hover:text-white"
-                    >
-                      {showOldPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-
-                  <div className="relative group w-full">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 ml-1">Password Baru</p>
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={form.newPassword || ''}
-                      onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
-                      className="w-full px-4 py-4 rounded-xl bg-white/[0.03] border border-white/5 text-xs outline-none"
-                      placeholder="Masukkan password baru"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-[30px] cursor-pointer hover:brightness-75 active:scale-[0.98] text-slate-400 hover:text-white"
-                    >
-                      {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    {userProfile.role === 'siswa' ? (
-                      <>
-                        <div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 ml-1">NIS</p>
-                          <input
-                            value={form.nis}
-                            onChange={(e) => setForm({ ...form, nis: e.target.value })}
-                            className="w-full px-4 py-4 rounded-xl bg-white/[0.03] border border-white/5 text-xs outline-none"
-                          />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 ml-1">NISN</p>
-                          <input
-                            value={form.nisn}
-                            onChange={(e) => setForm({ ...form, nisn: e.target.value })}
-                            className="w-full px-4 py-4 rounded-xl bg-white/[0.03] border border-white/5 text-xs outline-none"
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="col-span-2">
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 ml-1">NIP</p>
-                        <input
-                          value={form.nip}
-                          onChange={(e) => setForm({ ...form, nip: e.target.value })}
-                          className="w-full px-4 py-4 rounded-xl bg-white/[0.03] border border-white/5 text-xs outline-none"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={handleUpdateProfile}
-                    disabled={loadingProfile || photoLoading}
-                    className="mt-2 w-full py-4 cursor-pointer active:scale-95 hover:bg-blue-800 bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                  >
-                    {(loadingProfile || photoLoading) ? (
-                      <>
-                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                          {photoLoading ? 'Mengunggah Data...' : 'Memproses...'}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle size={14} />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Update Profil</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tab Menu Bottom */}
-          <div className="fixed bottom-0 w-full left-0 h-[8vh] mx-auto md:w-[32.3vw] right-0 flex justify-center z-20">
-            <div className="w-full md:w-max grid grid-cols-5 bg-slate-900 shadow-2xl border-top border-white/10 overflow-hidden">
-              <button
-                onClick={() => setActiveTab('home')}
-                className={`w-full flex flex-col text-center justify-center items-center gap-2 px-6 py-2.5 text-xs cursor-pointer active:scale-[0.97] hover:brightness-85 font-bold tracking-wider ${
-                  activeTab === 'home' ? 'text-blue-500' : 'text-slate-500'
-                }`}
-              >
-                <Home size={18.5} />
-                <p>Home</p>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('scan')}
-                className={`w-full flex flex-col text-center justify-center items-center gap-2 px-6 py-2.5 text-xs cursor-pointer active:scale-[0.97] hover:brightness-85 font-bold tracking-wider ${
-                  activeTab === 'scan' ? 'text-blue-500' : 'text-slate-500'
-                }`}
-              >
-                <ScanIcon size={18.5} />
-                <p>Scan</p>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`px-6 py-2.5 text-xs cursor-pointer gap-2 text-center flex flex-col justify-center items-center font-bold ${
-                  activeTab === 'history' ? 'text-blue-500' : 'text-slate-500'
-                }`}
-              >
-                <ClipboardList size={18.5} />
-                <p>Riwayat</p>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`w-full flex flex-col text-center justify-center items-center gap-2 px-6 py-2.5 text-xs cursor-pointer active:scale-[0.97] hover:brightness-85 font-bold tracking-wider ${
-                  activeTab === 'profile' ? 'text-blue-500' : 'text-slate-500'
-                }`}
-              >
-                <User size={18.5} />
-                <p>Profile</p>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('barcode')}
-                className={`w-full flex flex-col text-center justify-center items-center gap-2 px-6 py-2.5 text-xs cursor-pointer active:scale-[0.97] hover:brightness-85 font-bold tracking-wider ${
-                  activeTab === 'barcode' ? 'text-blue-500' : 'text-slate-500'
-                }`}
-              >
-                <BarcodeIcon size={18.5} />
-                <p>Barcode</p>
-              </button>
-            </div>
-          </div>
+        {/* Bottom navigation */}
+        <BottomTabNavigator activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
       {/* Modal Konfirmasi Logout */}
@@ -981,6 +776,51 @@ export default function ScannerPage() {
         </div>
       )}
 
+      {showLoginQrScanner && (
+        <div
+          className={`absolute inset-0 z-40 flex flex-col items-center justify-center p-6 text-center backdrop-blur-3xl transition-all duration-500 bg-slate-900/95`}
+        >
+        
+          {/* Area scanner */}
+          <div className="relative w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden border-4 border-cyan-500/30 shadow-2xl mb-8">
+            <div id="login-qr-reader" className="absolute inset-0 w-full h-full bg-black" />
+
+            {/* Tampilan awal (idle) - sebelum mulai scan */}
+            {loginQrStatus === 'idle' && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 text-center">
+                <QrCode size={64} className="text-cyan-400 mb-6" />
+                <h3 className="text-2xl font-bold text-white mb-4">Siap Memindai</h3>
+                <p className="text-slate-300 mb-8 max-w-sm">
+                  Tekan tombol di bawah untuk mengaktifkan kamera dan mulai scan QR login
+                </p>
+                <button
+                  onClick={() => setScannerActive(true)}
+                  className="px-10 py-5 bg-cyan-600 hover:bg-cyan-700 rounded-2xl text-white font-bold text-lg shadow-xl active:scale-95 transition-transform"
+                >
+                  Mulai Scan QR
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Instruksi bawah */}
+          <p className="text-sm text-slate-400 max-w-md mb-6">
+            Pastikan kode QR jelas • Hindari pantulan cahaya
+          </p>
+
+          {/* Tombol batal */}
+          <button
+            onClick={() => {
+              setShowLoginQrScanner(false);
+              setScannerActive(false);
+              setLoginQrStatus('idle');
+            }}
+            className="text-slate-400 hover:text-white text-sm underline active:scale-95 transition"
+          >
+            Batal / Tutup Scanner
+          </button>
+        </div>
+      )}
 
       <style>{`
         #reader video {
