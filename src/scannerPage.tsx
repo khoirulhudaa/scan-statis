@@ -42,7 +42,6 @@ export default function ScannerPage() {
 
   const state = useScannerState();
   const {
-    setMsg,
     status, setStatus,
     activeTab, setActiveTab,
     showLogoutConfirm, setShowLogoutConfirm,
@@ -74,7 +73,7 @@ export default function ScannerPage() {
   } = state;
 
   useEffect(() => {
-    if (!token || showLoginQrScanner) {
+    if (!token) {
       navigate('/', { replace: true });
       return;
     }
@@ -101,6 +100,7 @@ export default function ScannerPage() {
         );
       } catch (err) {
         console.error('Gagal memulai scanner:', err);
+        toast.error("Gagal membuka kamera. Pastikan izin diberikan."); 
       }
     };
 
@@ -401,16 +401,22 @@ export default function ScannerPage() {
       id: 'login-qr', 
       label: 'Login QR', 
       icon: QrCode,                 // import { QrCode } from 'lucide-react'
-      color: 'from-green-600 to-green-500', 
+      color: 'from-cyan-600 to-cyan-500', 
       badge: null 
     },
   ];
 
-  const QUICK_STATS = [
-    { label: 'Hadir', value: history ? history.filter((d) => d.status === 'Terlambat' || d.status === 'Hadir').length : '0', sub: 'hari ini' },
-    { label: 'Tugas', value: tugas ? tugas.length : '0', sub: 'belum dikumpul' },
-    { label: 'Nilai', value: '-', sub: 'rata-rata' },
-  ];
+  const isSiswa = userProfile.role === 'siswa';
+
+  const QUICK_STATS = isSiswa 
+  ? [
+      { label: 'Hadir', value: history ? history.filter((d: any) => d.status === 'Terlambat' || d.status === 'Hadir').length : '0', sub: 'hari ini' },
+      { label: 'Tugas', value: tugas ? tugas.length : '0', sub: 'belum dikumpul' },
+      { label: 'Nilai', value: '-', sub: 'rata-rata' },
+    ]
+  : [
+      { label: 'Hadir', value: history ? history.filter((d: any) => d.status === 'Terlambat' || d.status === 'Hadir').length : '0', sub: 'hari ini' }, // Menampilkan status hadir saja
+    ];
 
   // ────────────────────────────────────────────────
   // Fetch semua data penting saat component mount / home active
@@ -454,67 +460,96 @@ export default function ScannerPage() {
   }).catch(console.error);
 }, [activeTab, schoolId, token, loadHomeData]);
 
+  // Tambahkan ref di atas
+  const readerRef:any = useRef(null);
+
   useEffect(() => {
     if (!showLoginQrScanner || !scannerActive) return;
 
-    const reader = new Html5Qrcode("login-qr-reader");
+    // Inisialisasi instance
+    const html5QrCode = new Html5Qrcode("login-qr-reader");
+    readerRef.current = html5QrCode;
 
     const startScanning = async () => {
       try {
         setLoginQrStatus('scanning');
-        await reader.start(
+        await html5QrCode.start(
           { facingMode: "environment" },
           { 
-            fps: 24, // Tingkatkan ke 30 fps untuk respon lebih cepat
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              // Membuat kotak scan responsif (80% dari lebar layar)
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            fps: 24, 
+            qrbox: (w, h) => {
+              const minEdge = Math.min(w, h);
               const qrboxSize = Math.floor(minEdge * 0.8);
               return { width: qrboxSize, height: qrboxSize };
             },
             aspectRatio: 1.0 
           },
           async (decodedText) => {
-            // Hentikan scanner segera setelah terdeteksi
-            await reader.stop();
+            // 1. Hentikan scanner dengan aman
+            try {
+              await html5QrCode.stop();
+            } catch (e) {
+              console.warn("Stop on scan error", e);
+            }
+            
+            // 2. Update status dan tutup overlay jika perlu
             setLoginQrStatus('processing');
-            // Gunakan pembersihan teks (trim)
+            setShowLoginQrScanner(false); // Sembunyikan UI setelah berhasil
             await handleExternalLogin(decodedText.trim());
           },
-          // Kosongkan callback failure agar console bersih
           () => {} 
         );
       } catch (err) {
         console.error("Gagal memulai scanner:", err);
+        toast.error("Gagal membuka kamera. Pastikan izin diberikan."); 
         setLoginQrStatus('error');
-        setLoginQrMessage("Gagal membuka kamera. Pastikan izin kamera diizinkan.");
+        setLoginQrMessage("Gagal membuka kamera.");
       }
     };
 
     startScanning();
 
+    // Cleanup Function
     return () => {
-      reader.stop().catch((err) => console.log("Stop scanner error:", err));
-      setScannerActive(false); // reset agar tidak nyala otomatis lagi
+      if (readerRef.current && readerRef.current.isScanning) {
+        readerRef.current.stop()
+          .then(() => {
+            readerRef.current.clear(); // Bersihkan sisa elemen DOM
+          })
+          .catch((err: any) => console.log("Cleanup error:", err));
+      }
     };
   }, [showLoginQrScanner, scannerActive]);
 
   const handleExternalLogin = async (decodedSessionId: string) => {
-      setStatus({ type: 'loading', msg: 'Menghubungkan ke server...' });    try {
-      // Kita mengirim sessionId hasil scan ke backend
+    // 1. Tampilkan loading dan simpan ID-nya
+    const toastId = toast.loading('Menghubungkan ke server...');
+
+    try {
       const res = await axios.post(
         `${BASE_URL_SCHOOL}/scan-qr/login-qr-new`,
-        { qrCodeData: decodedSessionId }, // Session ID dari layar komputer
-        { headers: { Authorization: `Bearer ${token}` } } // Token HP Siswa/Guru
+        { qrCodeData: decodedSessionId },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (res.data.success) {
-        setStatus({type: 'success', msg: 'Login Berhasil! Cek layar komputer.'});
-        setMsg("Login Terkirim!");
+        // 2. Update toast yang tadi (menggunakan toastId)
+        toast.success('Login Berhasil!', {
+          id: toastId,
+          description: 'Silakan cek layar komputer Anda.',
+        });
+        
+        setShowLoginQrScanner(false);
+        setScannerActive(false);
+      } else {
+        throw new Error("Gagal");
       }
     } catch (err) {
-      setStatus({type: 'error', msg: 'Gagal menghubungkan login.'});
-      setMsg("Gagal verifikasi.");
+      // 3. Update toast ke error
+      toast.error('Login Gagal', {
+        id: toastId,
+        description: 'Gagal menghubungkan ke server.',
+      });
     }
   };
 
@@ -524,8 +559,23 @@ export default function ScannerPage() {
 
     const selectedMenu = MENU_ITEMS.find(m => m.id === activeMenu);
 
-    // Filter menu berdasarkan pencarian
-    const filteredMenuItems = MENU_ITEMS.filter(item =>
+    // Di dalam komponen HomePage atau sebelum render
+    const role = userProfile?.role?.toLowerCase();
+    const isSiswa = role === 'siswa';
+
+    // Filter MENU_ITEMS berdasarkan role
+    const visibleMenuItems = MENU_ITEMS.filter(item => {
+      if (isSiswa) {
+        // Jika SISWA: hilangkan login-qr
+        return item.id !== 'login-qr';
+      } else {
+        // Jika BUKAN SISWA: hilangkan tugas
+        return item.id !== 'tugas';
+      }
+    });
+
+    // Gunakan visibleMenuItems untuk pencarian
+    const filteredMenuItems = visibleMenuItems.filter(item =>
       item.label.toLowerCase().includes(searchQuery.toLowerCase().trim())
     );
 
@@ -535,6 +585,9 @@ export default function ScannerPage() {
   
     return (
       <div className="w-full h-full overflow-auto p-4 md:p-6">
+
+        <Toaster position="top-center" expand={false} richColors />
+
         {/* ── TOP SEARCH BAR ─────────────────────────── */}
         <HomeHeader
           searchQuery={searchQuery}
@@ -789,35 +842,27 @@ export default function ScannerPage() {
         >
         
           {/* Area scanner */}
-          <div className="relative w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden border-4 border-cyan-500/30 shadow-2xl mb-8">
+          <div className="relative w-full max-w-[360px] aspect-square rounded-2xl overflow-hidden border-4 border-slate-500/20 shadow-2xl mb-8">
             {/* Di dalam area scanner Login QR */}
-            <div id="login-qr-reader" className="absolute inset-0 w-full h-full bg-black">
-              {/* Animasi Garis Scan */}
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-400 shadow-[0_0_15px_cyan] animate-[scan_2s_linear_infinite] z-10" />
-            </div>
+            <div id="login-qr-reader" className="absolute inset-0 w-full h-full bg-slate-900/10" />
 
             {/* Tampilan awal (idle) - sebelum mulai scan */}
             {loginQrStatus === 'idle' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 text-center">
-                <QrCode size={64} className="text-cyan-400 mb-6" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/10 backdrop-blur-md p-6 text-center">
+                <QrCode size={64} className="text-cyan-300 mb-6" />
                 <h3 className="text-2xl font-bold text-white mb-4">Siap Memindai</h3>
-                <p className="text-slate-300 mb-8 max-w-sm">
-                  Tekan tombol di bawah untuk mengaktifkan kamera dan mulai scan QR login
+                <p className="text-slate-400 text-xs mb-8 max-w-sm">
+                  Tekan tombol di bawah
                 </p>
                 <button
                   onClick={() => setScannerActive(true)}
-                  className="px-10 py-5 bg-cyan-600 hover:bg-cyan-700 rounded-2xl text-white font-bold text-lg shadow-xl active:scale-95 transition-transform"
+                  className="cursor-pointer px-10 py-5 bg-cyan-500 hover:bg-cyan-600 rounded-2xl text-white font-bold text-lg shadow-xl active:scale-95 transition-transform"
                 >
                   Mulai Scan QR
                 </button>
               </div>
             )}
           </div>
-
-          {/* Instruksi bawah */}
-          <p className="text-sm text-slate-400 max-w-md mb-6">
-            Pastikan kode QR jelas • Hindari pantulan cahaya
-          </p>
 
           {/* Tombol batal */}
           <button
@@ -826,7 +871,7 @@ export default function ScannerPage() {
               setScannerActive(false);
               setLoginQrStatus('idle');
             }}
-            className="text-slate-400 hover:text-white text-sm underline active:scale-95 transition"
+            className="cursor-pointer text-white hover:text-white/70 text-sm underline active:scale-95 transition"
           >
             Batal / Tutup Scanner
           </button>
