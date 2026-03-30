@@ -79,12 +79,7 @@ export default function ServiceMenuGrid({
                   ) : (
                     <Icon size={22} className="text-white" />
                   )}
-
-                  {item.badge && !isLoading && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-[8px] font-black rounded-full flex items-center justify-center shadow">
-                      {item?.badge}
-                    </span>
-                  )}
+                  
                 </div>
                 <p className="text-[10px] font-bold text-slate-300 text-center leading-tight">
                   {item.label}

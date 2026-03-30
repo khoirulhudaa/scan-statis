@@ -14,22 +14,28 @@ interface ProfileViewProps {
   handleUpdateProfile: () => void;
   loadingProfile: boolean;
   photoLoading: boolean;
+  classList: any[];
+  loadingClass: boolean;
 }
 
-export default function ProfileView({
-  userProfile,
-  preview,
-  form,
-  setForm,
-  showOldPassword,
-  setShowOldPassword,
-  showNewPassword,
-  setShowNewPassword,
-  handlePhotoChange,
-  handleUpdateProfile,
-  loadingProfile,
-  photoLoading,
-}: ProfileViewProps) {
+  export default function ProfileView({
+    userProfile,
+    preview,
+    form,
+    setForm,
+    showOldPassword,
+    setShowOldPassword,
+    showNewPassword,
+    setShowNewPassword,
+    handlePhotoChange,
+    handleUpdateProfile,
+    loadingProfile,
+    photoLoading,
+
+    // 🔥 tambahan
+    classList,
+    loadingClass,
+  }: ProfileViewProps) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-start z-10 overflow-y-auto pb-32">
       <div className="w-full p-4 md:p-6">
@@ -81,6 +87,33 @@ export default function ProfileView({
               placeholder="Email Sekolah"
             />
           </div>
+
+          {/* KELAS */}
+          {userProfile.role === 'siswa' && (
+            <div className="group">
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                Kelas
+              </p>
+
+              <select
+                value={form.class || ''}
+                onChange={(e) => setForm({ ...form, class: e.target.value })}
+                className="w-full px-4 py-4 rounded-xl bg-slate-800/60 border border-white/5 focus:border-blue-500/50 outline-none text-xs transition-all"
+              >
+                <option value="">Pilih Kelas</option>
+
+                {loadingClass && (
+                  <option disabled>Memuat kelas...</option>
+                )}
+
+                {classList?.map((kelas) => (
+                  <option key={kelas.id} value={kelas.className}>
+                    {kelas.className}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Password Lama */}
           <div className="relative group w-full">

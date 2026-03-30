@@ -13,6 +13,8 @@ export const useScannerState = () => {
 
   // ── History ────────────────────────────────────────────────────────────
   const [history, setHistory] = useState<any[]>([]);
+  const [classList, setClassList] = useState<any[]>([]);
+  const [loadingClass, setLoadingClass] = useState<boolean>(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   // ── Profile form & UI ──────────────────────────────────────────────────
@@ -70,6 +72,8 @@ export const useScannerState = () => {
 
     // History
     history, setHistory,
+    classList, setClassList,
+    loadingClass, setLoadingClass,
     loadingHistory, setLoadingHistory,
 
     // Profile

@@ -1,11 +1,27 @@
 // src/components/scanner/ScanView.tsx
 import { AlertCircle, CheckCircle } from 'lucide-react';
+import { useMemo } from 'react';
 
 interface ScanViewProps {
   status: any;
 }
 
 export default function ScanView({ status }: ScanViewProps) {
+
+  // Mengambil nama dari localStorage user_profile
+  const studentName = useMemo(() => {
+    try {
+      const profile = localStorage.getItem('user_profile');
+      if (profile) {
+        const parsed = JSON.parse(profile);
+        return parsed.name;
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data profil:", error);
+    }
+    return null;
+  }, []);
+
   return (
     <div className="flex-1 flex h-full overflow-hidden items-center justify-center p-0 z-10 relative">
       <div className="relative w-full h-full">
@@ -23,11 +39,11 @@ export default function ScanView({ status }: ScanViewProps) {
         {status && (
           <div
             className={`absolute h-screen inset-0 z-30 flex flex-col items-center justify-center p-8 text-center backdrop-blur-3xl transition-all duration-500 ${
-              status.type === 'success' ? 'bg-blue-500' : 'bg-slate-900/95'
+              status?.type === 'success' ? 'bg-blue-500' : 'bg-slate-900/95'
             }`}
           >
             <div className="w-24 h-24 rounded-full flex items-center justify-center mb-4 bg-white/10">
-              {status.type === 'loading' ? (
+              {status?.type === 'loading' ? (
                 <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <span className="text-4xl text-white">
@@ -35,7 +51,15 @@ export default function ScanView({ status }: ScanViewProps) {
                 </span>
               )}
             </div>
-            <p className="font-bold uppercase tracking-[0.2em] text-sm mb-8">{status.msg}</p>
+            {status?.type === 'success' && studentName && (
+              <h2 className="text-white text-md font-black mb-2 uppercase tracking-tight">
+                {studentName}
+              </h2>
+            )}
+
+            <p className={`font-bold uppercase tracking-[0.2em] text-sm ${status.type === 'success' ? 'text-blue-100' : 'text-red-400'} mb-8`}>
+              {status.msg}
+            </p>
             {status.type !== 'loading' && (
               <button
                 onClick={() => window.location.reload()}

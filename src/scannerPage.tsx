@@ -8,6 +8,7 @@ import {
   LogOut,
   Megaphone,
   Newspaper,
+  Pen,
   QrCode,
   Star,
   Users
@@ -35,6 +36,7 @@ import { useSchoolHomeData } from './hooks/useSchoolHomeData';
 
 const BASE_URL_SCHOOL = 'https://be-school.kiraproject.id';
 const BASE_URL_PERPUS = 'https://be-perpus.kiraproject.id';
+const BASE_URL = 'https://be-school.kiraproject.id'
 
 export default function ScannerPage() {
   const navigate = useNavigate();
@@ -52,6 +54,8 @@ export default function ScannerPage() {
     showNewPassword, setShowNewPassword,
     form, setForm,
     loadingProfile, setLoadingProfile,
+    classList, setClassList,
+    loadingClass, setLoadingClass,
     photoLoading, setPhotoLoading,
     preview, setPreview,
     userProfile, setUserProfile,
@@ -120,8 +124,35 @@ export default function ScannerPage() {
       nis: userProfile.nis || '',
       nisn: userProfile.nisn || '',
       nip: userProfile.nip || '',
+      class: userProfile.class || '',
     });
   }, [userProfile]);
+
+  // console.log('userRPifle id', userProfile.schoolId)
+   useEffect(() => {
+      const fetchClasses = async () => {
+        try {
+          setLoadingClass(true);
+
+          const res = await axios.get(
+            `${BASE_URL}/kelas?schoolId=${userProfile.schoolId}`
+          );
+
+          if (res.data.success) {
+            setClassList(res.data.data);
+          }
+
+        } catch (err) {
+          console.error('Gagal ambil kelas');
+        } finally {
+          setLoadingClass(false);
+        }
+      };
+
+      if (userProfile.schoolId) {
+        fetchClasses();
+      }
+    }, [userProfile.schoolId]);
 
   // ────────────────────────────────────────────────
   // Fungsi utama pemrosesan scan (pemisah absen vs perpus)
@@ -151,15 +182,21 @@ export default function ScannerPage() {
       async (position) => {
         const { latitude, longitude } = position.coords;
         setStatus({ type: 'loading', msg: 'Syncing...' });
-
+        
         try {
+          let qrPosition = 'left';
+
+          if (qrData.includes('_RIGHT')) {
+            qrPosition = 'right';
+          }
           const res = await axios.post(
-            `${BASE_URL_SCHOOL}/scan-qr`,
+            `${BASE_URL_SCHOOL}/scan-qr/double-qr`,
             {
               qrCodeData: qrData,
               role: userProfile.role === 'siswa' ? 'student' : 'teacher',
               userLat: latitude,
               userLon: longitude,
+              qrPosition 
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
@@ -274,6 +311,7 @@ export default function ScannerPage() {
           nis: updatedProfile.nis || '',
           nisn: updatedProfile.nisn || '',
           nip: updatedProfile.nip || '',
+          class: updatedProfile.class || '',
         });
 
         toast.success('Profil berhasil diperbarui!');
@@ -328,6 +366,7 @@ export default function ScannerPage() {
       const res = await axios.get(`${BASE_URL_SCHOOL}/siswa/get-attendances`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      // console.log('history', res.data)
       if (res.data.success) setHistory(res.data.data);
     } catch (err) {
       console.error('Gagal ambil history:', err);
@@ -337,8 +376,10 @@ export default function ScannerPage() {
   };
 
   useEffect(() => {
-    if (activeTab === 'history') fetchHistory();
-  }, [activeTab]);
+    if (token) {
+      fetchHistory();
+    }
+  }, [token]);
 
   const logout = () => {
     localStorage.clear();
@@ -410,9 +451,13 @@ export default function ScannerPage() {
 
   const QUICK_STATS = isSiswa 
   ? [
-      { label: 'Hadir', value: history ? history.filter((d: any) => d.status === 'Terlambat' || d.status === 'Hadir').length : '0', sub: 'hari ini' },
+      { label: 'Hadir', value: history ? history?.filter((d: any) => d.status === 'Terlambat' || d.status === 'Hadir').length : '0', sub: 'hari ini' },
       { label: 'Tugas', value: tugas ? tugas.length : '0', sub: 'belum dikumpul' },
-      { label: 'Nilai', value: '-', sub: 'rata-rata' },
+      { 
+        label: 'Presensi', 
+        value: history ? `${Math.round((history.filter((d: any) => d.status === 'Hadir').length / 22) * 100)}%` : '0%', 
+        sub: 'bulan ini' 
+      }
     ]
   : [
       { label: 'Hadir', value: history ? history.filter((d: any) => d.status === 'Terlambat' || d.status === 'Hadir').length : '0', sub: 'hari ini' }, // Menampilkan status hadir saja
@@ -556,12 +601,58 @@ export default function ScannerPage() {
   function HomePage({ userProfile = { name: 'Ahmad Fauzi', role: 'siswa', kelas: 'XII IPA 2' } }: any) {
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [profileForm, setProfileForm] = useState<any>({});
+    const [emptyFields, setEmptyFields] = useState<string[]>([]);
+    const fieldLabels: any = {
+      name: 'Nama',
+      nis: 'NIS',
+      nisn: 'NISN',
+      nik: 'NIK',
+      gender: 'Jenis Kelamin',
+      birthPlace: 'Tempat Lahir',
+      birthDate: 'Tanggal Lahir',
+      class: 'Kelas',
+      batch: 'Angkatan',
+      email: 'Email'
+    };
+
+    const isFieldEmpty = (field: string) => {
+      const value = profileForm[field];
+
+      return (
+        value === null ||
+        value === undefined ||
+        value === '' ||
+        value === '-' ||
+        value === '0'
+      );
+    };
+
+    const inputClass = (field: string) => `
+      w-full h-12 p-3 rounded text-white placeholder:text-slate-500
+      ${isFieldEmpty(field)
+        ? 'bg-red-500/10 text-red-200'
+        : 'bg-slate-800 border border-transparent'
+      }
+    `;
+
+    const inputClassLabel = (field: string) => `
+      text-xs mb-1
+      ${isFieldEmpty(field)
+        ? 'text-red-400'
+        : 'text-white'
+      }
+    `;
 
     const selectedMenu = MENU_ITEMS.find(m => m.id === activeMenu);
+
+    const BASE_URL = 'https://be-school.kiraproject.id'
 
     // Di dalam komponen HomePage atau sebelum render
     const role = userProfile?.role?.toLowerCase();
     const isSiswa = role === 'siswa';
+    // console.log('role', role)
 
     // Filter MENU_ITEMS berdasarkan role
     const visibleMenuItems = MENU_ITEMS.filter(item => {
@@ -579,8 +670,102 @@ export default function ScannerPage() {
       item.label.toLowerCase().includes(searchQuery.toLowerCase().trim())
     );
 
+    const requiredFields = [
+      'name',
+      'nis',
+      'nik',
+      'gender',
+      'birthPlace',
+      'birthDate',
+      'class',
+      'batch',
+      'email'
+    ];
+
+    const getEmptyFields = (profile: any) => {
+      if (!profile) return [];
+
+      return requiredFields.filter((field) => {
+        const value = profile[field];
+
+        return (
+          value === null ||
+          value === undefined ||
+          value === '' ||
+          value === '-' ||
+          value === '0'
+        );
+      });
+    };
+
+    useEffect(() => {
+      if (userProfile) {
+        const empty = getEmptyFields(userProfile);
+        const isSiswa = userProfile.role === 'siswa';
+        if (empty.length > 0 && isSiswa) {
+          setProfileForm(userProfile);
+          setEmptyFields(empty); // ← simpan
+          setShowProfileModal(true);
+        }
+      }
+    }, [userProfile]);
+
     const handleClearSearch = () => {
       setSearchQuery('');
+    };
+
+    const handleUpdateProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+
+        if (!profileForm.name || !profileForm.nis || !profileForm.class) {
+          alert('Nama | NIS | Kelas wajib diisi.');
+          return;
+        }
+
+        const payload = {
+          name: profileForm.name,
+          nis: profileForm.nis,
+          nisn: profileForm.nisn,
+          nik: profileForm.nik,
+          gender: profileForm.gender,
+          birthPlace: profileForm.birthPlace,
+          birthDate: profileForm.birthDate,
+          class: profileForm.class, // ← STRING (contoh: "XII IPA 2")
+          batch: profileForm.batch,
+          email: profileForm.email
+        };
+
+        const res = await axios.put(
+          `${BASE_URL}/siswa/${profileForm.id}`,
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        if (res.data.success) {
+          const updatedProfile = res.data.data;
+
+          // Update localStorage
+          localStorage.setItem('user_profile', JSON.stringify(updatedProfile));
+
+          // Update state profileForm
+          setProfileForm(updatedProfile);
+
+          // 🔥 HITUNG ULANG EMPTY FIELDS
+          const empty = getEmptyFields(updatedProfile);
+          setEmptyFields(empty);
+
+          // 🔥 AUTO CLOSE kalau sudah lengkap
+          setShowProfileModal(false);
+        }
+
+      } catch (err: any) {
+        alert(err.response?.data?.message || 'Gagal update');
+      }
     };
   
     return (
@@ -598,6 +783,56 @@ export default function ScannerPage() {
   
         <div className="pt-4 space-y-5">
           <WelcomeBanner userProfile={userProfile} quickStats={QUICK_STATS} />
+
+         {emptyFields.length > 0 && (
+          <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-transparent pointer-events-none" />
+
+            {/* Content */}
+            <div className="relative z-10 space-y-3">
+
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                <p className="text-sm font-semibold text-red-300 tracking-wide">
+                  Profil belum lengkap
+                </p>
+              </div>
+
+              <div
+                onClick={() => setShowProfileModal(!showProfileModal)}
+                className="
+                  absolute flex w-6 h-6 p-1 items-center justify-center
+                  rounded-md top-0 right-0
+                  cursor-pointer active:scale-95
+                  bg-red-500/20 hover:bg-red-500/30
+                  border border-red-400
+                  text-red-300
+                  transition-all duration-150
+                "
+              >
+                <Pen />
+              </div>
+
+              <p className="text-xs text-slate-400">
+                Lengkapi data berikut untuk melanjutkan:
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {emptyFields.map((field) => (
+                  <span
+                    key={field}
+                    className="px-3 py-1 rounded-md text-[10px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20"
+                  >
+                    {fieldLabels[field] || field}
+                  </span>
+                ))}
+              </div>
+
+            </div>
+          </div>
+        )}
 
           <ServiceMenuGrid
             filteredMenuItems={filteredMenuItems}
@@ -619,6 +854,161 @@ export default function ScannerPage() {
             onSelectAnnouncement={setSelectedAnnouncement}
           />
         </div>
+
+        {showProfileModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-2xl p-3 overflow-auto">
+            <div className="bg-slate-900 p-4 rounded-2xl w-[100vw] md:max-w-4xl h-max overflow-auto mx-auto flex flex-col space-y-4">
+
+              <h2 className="text-lg font-bold text-left text-white">Lengkapi Profil Siswa</h2>
+
+              <div className="flex-1 grid h-max gap-3">
+
+                {/* Baris 1: Nama & NIS */}
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('name')}>Nama Lengkap</label>
+                    <input
+                      type="text"
+                      placeholder="Nama Lengkap"
+                      value={profileForm.name || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                      className={inputClass('name')}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('nis')}>NIS</label>
+                    <input
+                      type="text"
+                      placeholder="NIS"
+                      value={profileForm.nis || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, nis: e.target.value })}
+                      className={inputClass('nis')}
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('nisn')}>NISN</label>
+                    <input
+                      type="text"
+                      placeholder="NISN"
+                      value={profileForm.nisn || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, nisn: e.target.value })}
+                      className={inputClass('nisn')}
+                    />
+                  </div>
+                </div>
+
+                {/* Baris 2: NISN & NIK */}
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('nik')}>NIK</label>
+                    <input
+                      type="text"
+                      placeholder="NIK"
+                      value={profileForm.nik || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, nik: e.target.value })}
+                      className={inputClass('nik')}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('email')}>Email</label>
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={profileForm.email || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      className={inputClass('email')}
+                    />
+                  </div>
+                </div>
+
+                {/* Baris 3: Gender & Tempat Lahir */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('gender')}>Gender</label>
+                    <select
+                      value={profileForm.gender || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                      className={inputClass('gender')}
+                    >
+                      <option value="">Pilih Gender</option>
+                      <option value="Laki-laki">Laki-laki</option>
+                      <option value="Perempuan">Perempuan</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('birthPlace')}>Tempat Lahir</label>
+                    <input
+                      type="text"
+                      placeholder="Tempat Lahir"
+                      value={profileForm.birthPlace || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, birthPlace: e.target.value })}
+                      className={inputClass('birthPlace')}
+                    />
+                  </div>
+                </div>
+
+                {/* Baris 4: Tanggal Lahir & Kelas */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('birthDate')}>Tanggal Lahir</label>
+                    <input
+                      type="date"
+                      value={profileForm.birthDate || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, birthDate: e.target.value })}
+                      className={inputClass('birthDate')}
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('class')}>Kelas</label>
+                    <select
+                      value={profileForm.class || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, class: e.target.value })}
+                      className={inputClass('class')}
+                    >
+                      <option value="">Pilih Kelas</option>
+                      {loadingClass && <option disabled>Memuat...</option>}
+                      {classList.map((kelas) => (
+                        <option key={kelas.id} value={kelas.className}>
+                          {kelas.className}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Baris 5: Batch / Angkatan & Email */}
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex flex-col">
+                    <label className={inputClassLabel('nis')}>Batch / Angkatan</label>
+                    <input
+                      type="text"
+                      placeholder="Batch / Angkatan"
+                      value={profileForm.batch || ''}
+                      onChange={(e) => setProfileForm({ ...profileForm, batch: e.target.value })}
+                      className={inputClass('batch')}
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              <button
+                onClick={handleUpdateProfile}
+                className="w-full py-3 bg-blue-600 rounded-xl font-bold text-white hover:bg-blue-500 active:scale-[0.97] transition"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        )}
 
         {selectedAnnouncement && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -784,6 +1174,8 @@ export default function ScannerPage() {
         )}
         {activeTab === 'profile' && (
           <ProfileView
+            classList={classList}
+            loadingClass={loadingClass}
             userProfile={userProfile}
             preview={preview}
             form={form}
