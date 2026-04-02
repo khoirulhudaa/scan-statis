@@ -5,7 +5,7 @@ import { id } from 'date-fns/locale/id';
 interface NewsContentProps {
   items: any[];
   loading: boolean;
-  error: string;
+  error: any;
 }
 
 export default function NewsContent({ items, loading, error }: NewsContentProps) {

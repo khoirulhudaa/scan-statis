@@ -5,7 +5,7 @@ import { id } from 'date-fns/locale/id';
 interface AnnouncementContentProps {
   items: any[];
   loading: boolean;
-  error: string;
+  error: any;
   setSelectedAnnouncement?: (item: any) => void;
 }
 

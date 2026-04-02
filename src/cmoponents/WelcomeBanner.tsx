@@ -52,7 +52,7 @@ export default function WelcomeBanner({ userProfile, quickStats }: WelcomeBanner
             {userProfile.name || userProfile.nama || 'User'}
           </h2>
           <p className="text-[10px] text-blue-200 mt-0.5 uppercase tracking-wider font-medium">
-            {userProfile.kelas || userProfile.role || 'Siswa'}
+            {userProfile.role === 'siswa' ? 'NISN' : 'NIP'}: {userProfile.nisn || userProfile.nip || '00000000'}
           </p>
         </div>
 

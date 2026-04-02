@@ -14,7 +14,7 @@ interface Announcement {
 interface LatestAnnouncementsProps {
   announcements: Announcement[];
   loading: boolean;
-  error?: string;
+  error?: any;
   onSelectAnnouncement: (ann: Announcement) => void;
 }
 

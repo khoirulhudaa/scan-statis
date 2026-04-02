@@ -2,7 +2,7 @@
 interface TugasContentProps {
   items: any[];
   loading: boolean;
-  error: string;
+  error: any;
 }
 
 export default function TugasContent({ items, loading, error }: TugasContentProps) {

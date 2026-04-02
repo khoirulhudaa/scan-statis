@@ -7,7 +7,7 @@ interface UlasanContentProps {
   comments: any[];
   avgRating: number | null;
   loading: boolean;
-  error: string;
+  error: any;
   schoolId: number | null;
   token: string | null;
   onCommentAdded: (newComment: any) => void;
@@ -59,7 +59,7 @@ export default function UlasanContent({
   };
 
   if (loading) return <div className="text-center py-10">Memuat ulasan...</div>;
-  if (error) return <div className="text-red-400 text-center py-10">{error}</div>;
+  if (error) return <div className="text-red-400 text-center py-10">{'dd'}</div>;
 
   return (
     <div className="space-y-5">

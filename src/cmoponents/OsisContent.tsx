@@ -2,7 +2,7 @@
 interface OsisContentProps {
   data: any;
   loading: boolean;
-  error: string;
+  error: any;
 }
 
 export default function OsisContent({ data, loading, error }: OsisContentProps) {

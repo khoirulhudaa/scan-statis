@@ -2,7 +2,7 @@
 interface KelulusanContentProps {
   items: any[];
   loading: boolean;
-  error: string;
+  error: any;
 }
 
 export default function KelulusanContent({ items, loading, error }: KelulusanContentProps) {
