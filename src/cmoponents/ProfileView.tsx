@@ -42,7 +42,7 @@ interface ProfileViewProps {
         <div className="flex items-start justify-start w-full text-left flex-col space-y-2 gap-4 mb-4 border-b border-white/5 pb-6">
           <div className="absolute group opacity-0 z-[-9]">
             <img
-              src={preview || userProfile.photoUrl || 'https://via.placeholder.com/150'}
+              src={preview || userProfile.photoUrl  }
               className="w-14 h-14 rounded-full object-cover border border-white/10"
               alt="Profile"
             />

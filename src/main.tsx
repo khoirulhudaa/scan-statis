@@ -5,9 +5,8 @@ import './App.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const handleUnauthorized = () => {
-  // localStorage.clear();
-  window.alert('1')
-  // window.location.href = '/';
+  localStorage.clear();
+  window.location.href = '/';
 };
 
 const queryClient = new QueryClient({

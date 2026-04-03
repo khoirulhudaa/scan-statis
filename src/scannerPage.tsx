@@ -155,7 +155,7 @@ export default function ScannerPage() {
     queryKey: queryKeys.classes(schoolId),
     queryFn:  () => fetchClasses(schoolId),
     enabled:  !!schoolId,
-    staleTime: 1000 * 60 * 10,
+    staleTime: 1000 * 60 * 5,
   });
 
   // 3–8. Home data (only when home tab is active & schoolId is available)
