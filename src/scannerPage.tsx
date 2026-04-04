@@ -33,6 +33,7 @@ import UlasanContent from './cmoponents/UlasanContent';
 import WelcomeBanner from './cmoponents/WelcomeBanner';
 import { useScannerState } from './hooks/useScannerState';
 import axiosInstance from './utils/axiosInstance';
+import FaceView from './cmoponents/FaceView';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const BASE_URL_SCHOOL = 'https://be-school.kiraproject.id';
@@ -993,6 +994,7 @@ export default function ScannerPage() {
       {/* Master Wrapper */}
       <div className="relative w-screen md:w-[32.3vw] h-[82vh] my-auto mx-auto overflow-auto">
         {activeTab === 'scan'    && <ScanView status={status} />}
+        {activeTab === 'face' && <FaceView />}
         {activeTab === 'barcode' && (
           <BarcodeView
             userProfile={userProfile}

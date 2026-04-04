@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 export const useScannerState = () => {
   // ── Core states ────────────────────────────────────────────────────────
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'loading' | 'processing' | 'error'; msg: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'scan' | 'barcode' | 'history' | 'profile'>('scan');
+  const [activeTab, setActiveTab] = useState<'home' | 'scan' | 'barcode' | 'face' | 'history' | 'profile'>('scan');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [msg, setMsg] = useState<string>(''); // <--- TAMBAHKAN BARIS INI
 
