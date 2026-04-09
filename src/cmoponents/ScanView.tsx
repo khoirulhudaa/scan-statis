@@ -1,12 +1,13 @@
 // src/components/scanner/ScanView.tsx
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, ScanFace } from 'lucide-react';
 import { useMemo } from 'react';
 
 interface ScanViewProps {
   status: any;
+  onSwitchToFaceScan?: () => void;
 }
 
-export default function ScanView({ status }: ScanViewProps) {
+export default function ScanView({ status, onSwitchToFaceScan }: ScanViewProps) {
 
   // Mengambil nama dari localStorage user_profile
   const studentName = useMemo(() => {
@@ -68,6 +69,20 @@ export default function ScanView({ status }: ScanViewProps) {
                 Kembali
               </button>
             )}
+          </div>
+        )}
+
+        {!status && (
+          <div className="absolute top-20 right-1/2 translate-x-1/2 z-30">
+            <button
+              onClick={onSwitchToFaceScan}
+              className="bg-white/20 rounded-xl w-max cursor-pointer group flex items-center gap-3 hover:bg-white/30 p-2 border border-white/40 pl-2.5 pr-2.5 rounded-2xl shadow-2xl active:scale-[0.98] transition-all duration-200"
+            >
+              <div className="w-8 h-8 flex items-center justify-center">
+                <ScanFace size={24} className="text-white" />
+              </div>
+              {/* <p>Scan wajah</p> */}
+            </button>
           </div>
         )}
 

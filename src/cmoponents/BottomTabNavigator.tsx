@@ -38,11 +38,11 @@
 
 
 // src/components/scanner/BottomTabNavigator.tsx
-import { Home, ScanIcon, ClipboardList, User, BarcodeIcon } from 'lucide-react';
+import { BarcodeIcon, ClipboardList, Home, ScanIcon, User } from 'lucide-react';
 
 interface BottomTabNavigatorProps {
-  activeTab: 'home' | 'scan' | 'barcode' | 'history' | 'profile';
-  setActiveTab: (tab: 'home' | 'scan' | 'barcode' | 'history' | 'profile') => void;
+  activeTab: 'home' | 'scan' | 'barcode' | 'face' | 'history' | 'profile';
+  setActiveTab: (tab: 'home' | 'scan' | 'barcode' | 'face' | 'history' | 'profile') => void;
   role?: string; // Tambahkan prop role
 }
 
@@ -52,24 +52,27 @@ export default function BottomTabNavigator({ activeTab, setActiveTab, role }: Bo
     { id: 'scan', label: 'Scan', Icon: ScanIcon },
     { id: 'history', label: 'Riwayat', Icon: ClipboardList },
     { id: 'profile', label: 'Profile', Icon: User },
+    // { id: 'face', label: 'Wajah', Icon: UserRoundPlus },
     { id: 'barcode', label: 'Barcode', Icon: BarcodeIcon },
   ];
 
+  console.log('ROLE:', role)
+
   // Filter tab: Jika bukan siswa, buang 'scan' dan 'history'
-  const filteredTabs = allTabs.filter((tab) => {
-    if (role !== 'siswa') {
-      return tab.id !== 'scan' && tab.id !== 'history';
-    }
-    return true;
-  });
+  // const filteredTabs = allTabs.filter((tab) => {
+  //   if (role !== 'siswa') {
+  //     return tab.id !== 'scan' && tab.id !== 'history';
+  //   }
+  //   return true;
+  // });
 
   return (
     <div className="fixed bottom-0 w-full left-0 h-[8vh] mx-auto md:w-[32.3vw] right-0 flex justify-center z-20">
       <div 
         className={`w-full md:w-max grid bg-slate-900 shadow-2xl border-t border-white/10 overflow-hidden`}
-        style={{ gridTemplateColumns: `repeat(${filteredTabs.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${allTabs.length}, minmax(0, 1fr))` }}
       >
-        {filteredTabs.map(({ id, label, Icon }) => (
+        {allTabs.map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id as any)}

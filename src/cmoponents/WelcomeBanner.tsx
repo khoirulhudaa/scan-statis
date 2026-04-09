@@ -75,7 +75,7 @@ export default function WelcomeBanner({ userProfile, quickStats }: WelcomeBanner
             <p className="text-[8px] text-blue-100 font-bold uppercase tracking-wide leading-tight">
               {s.label}
             </p>
-            <p className="text-[7px] text-blue-200/70 mt-0.5">{s.sub}</p>
+            {/* <p className="text-[7px] text-blue-200/70 mt-0.5">{s.sub}</p> */}
           </div>
         ))}
       </div>

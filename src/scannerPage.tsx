@@ -3,15 +3,12 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale/id';
 import { Html5Qrcode } from 'html5-qrcode';
 import {
-  BookOpen,
-  GraduationCap,
   LogOut,
   Megaphone,
   Newspaper,
   Pen,
   QrCode,
-  Star,
-  Users
+  Star
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -19,21 +16,18 @@ import { toast, Toaster } from 'sonner';
 import AnnouncementContent from './cmoponents/AnnouncementContent';
 import BarcodeView from './cmoponents/barcodeView';
 import BottomTabNavigator from './cmoponents/BottomTabNavigator';
+import FaceView from './cmoponents/FaceView';
 import HistoryView from './cmoponents/HistoryView';
 import HomeHeader from './cmoponents/HomeHeader';
-import KelulusanContent from './cmoponents/KelulusanContent';
 import LatestAnnouncements from './cmoponents/LatestAnnouncements';
 import NewsContent from './cmoponents/NewsContent';
-import OsisContent from './cmoponents/OsisContent';
 import ProfileView from './cmoponents/ProfileView';
 import ScanView from './cmoponents/ScanView';
 import ServiceMenuGrid from './cmoponents/ServiceMenuGrid';
-import TugasContent from './cmoponents/TugasContent';
 import UlasanContent from './cmoponents/UlasanContent';
 import WelcomeBanner from './cmoponents/WelcomeBanner';
 import { useScannerState } from './hooks/useScannerState';
 import axiosInstance from './utils/axiosInstance';
-import FaceView from './cmoponents/FaceView';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const BASE_URL_SCHOOL = 'https://be-school.kiraproject.id';
@@ -61,39 +55,53 @@ const fetchAttendances = async (token: string) => {
   return res.data.data;
 };
 
-const fetchClasses = async (schoolId: number) => {
-  const res = await axiosInstance.get(`${BASE_URL}/kelas?schoolId=${schoolId}`);
+const fetchClasses = async (schoolId: number, token: string) => {
+  const res = await axiosInstance.get(`${BASE_URL}/kelas?schoolId=${schoolId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.data.success) throw new Error('Gagal mengambil data kelas');
   return res.data.data;
 };
 
-const fetchAnnouncements = async (schoolId: number) => {
-  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/pengumuman?schoolId=${schoolId}`);
+const fetchAnnouncements = async (schoolId: number, token: string) => {
+  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/pengumuman?schoolId=${schoolId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.data.data ?? [];
 };
 
-const fetchNews = async (schoolId: number) => {
-  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/berita?schoolId=${schoolId}`);
+const fetchNews = async (schoolId: number, token: string) => {
+  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/berita?schoolId=${schoolId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.data.data ?? [];
 };
 
-const fetchTugas = async (schoolId: number) => {
-  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/tugas?schoolId=${schoolId}`);
-  return res.data.data ?? [];
-};
+// const fetchTugas = async (schoolId: number, token: string) => {
+//   const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/tugas?schoolId=${schoolId}`, {
+//     headers: { Authorization: `Bearer ${token}` },
+//   });
+//   return res.data.data ?? [];
+// };
 
-const fetchOsis = async (schoolId: number) => {
-  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/osis?schoolId=${schoolId}`);
-  return res.data.data ?? null;
-};
+// const fetchOsis = async (schoolId: number, token: string) => {
+//   const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/osis?schoolId=${schoolId}`, {
+//     headers: { Authorization: `Bearer ${token}` },
+//   });
+//   return res.data.data ?? null;
+// };
 
-const fetchAlumni = async (schoolId: number) => {
-  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/alumni?schoolId=${schoolId}`);
-  return res.data.data ?? [];
-};
+// const fetchAlumni = async (schoolId: number, token: string) => {
+//   const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/alumni?schoolId=${schoolId}`, {
+//     headers: { Authorization: `Bearer ${token}` },
+//   });
+//   return res.data.data ?? [];
+// };
 
-const fetchComments = async (schoolId: number) => {
-  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/rating?schoolId=${schoolId}`);
+const fetchComments = async (schoolId: number, token: string) => {
+  const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/rating?schoolId=${schoolId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   const data = res.data.data ?? [];
   const avg  = data.length
     ? data.reduce((acc: number, c: any) => acc + (c.rating ?? 0), 0) / data.length
@@ -154,7 +162,7 @@ export default function ScannerPage() {
     isLoading: loadingClass,
   } = useQuery({
     queryKey: queryKeys.classes(schoolId),
-    queryFn:  () => fetchClasses(schoolId),
+    queryFn:  () => fetchClasses(schoolId, token),
     enabled:  !!schoolId,
     staleTime: 1000 * 60 * 5,
   });
@@ -164,42 +172,42 @@ export default function ScannerPage() {
 
   const { data: announcements = [], isLoading: loadingAnnouncements, isError: errorAnnouncements } = useQuery({
     queryKey: queryKeys.announcements(schoolId),
-    queryFn:  () => fetchAnnouncements(schoolId),
+    queryFn:  () => fetchAnnouncements(schoolId, token),
     enabled:  homeEnabled,
     staleTime: 1000 * 60 * 5,
   });
 
   const { data: news = [], isLoading: loadingNews, isError: errorNews } = useQuery({
     queryKey: queryKeys.news(schoolId),
-    queryFn:  () => fetchNews(schoolId),
+    queryFn:  () => fetchNews(schoolId, token),
     enabled:  homeEnabled,
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: tugas = [], isLoading: loadingTugas, isError: errorTugas } = useQuery({
-    queryKey: queryKeys.tugas(schoolId),
-    queryFn:  () => fetchTugas(schoolId),
-    enabled:  homeEnabled,
-    staleTime: 1000 * 60 * 5,
-  });
+  // const { data: tugas = [], isLoading: loadingTugas, isError } = useQuery({
+  //   queryKey: queryKeys.tugas(schoolId),
+  //   queryFn:  () => fetchTugas(schoolId, token),
+  //   enabled:  homeEnabled,
+  //   staleTime: 1000 * 60 * 5,
+  // });
 
-  const { data: osisData = null, isLoading: loadingOsis, isError: errorOsis } = useQuery({
-    queryKey: queryKeys.osis(schoolId),
-    queryFn:  () => fetchOsis(schoolId),
-    enabled:  homeEnabled,
-    staleTime: 1000 * 60 * 10,
-  });
+  // const { data: osisData = null, isLoading: loadingOsis, isError: errorOsis } = useQuery({
+  //   queryKey: queryKeys.osis(schoolId),
+  //   queryFn:  () => fetchOsis(schoolId, token),
+  //   enabled:  homeEnabled,
+  //   staleTime: 1000 * 60 * 10,
+  // });
 
-  const { data: alumniData = [], isLoading: loadingAlumni, isError: errorAlumni } = useQuery({
-    queryKey: queryKeys.alumni(schoolId),
-    queryFn:  () => fetchAlumni(schoolId),
-    enabled:  homeEnabled,
-    staleTime: 1000 * 60 * 10,
-  });
+  // const { data: alumniData = [], isLoading: loadingAlumni, isError: errorAlumni } = useQuery({
+  //   queryKey: queryKeys.alumni(schoolId),
+  //   queryFn:  () => fetchAlumni(schoolId, token),
+  //   enabled:  homeEnabled,
+  //   staleTime: 1000 * 60 * 10,
+  // });
 
   const { data: reviewData, isLoading: loadingUlasan, isError: errorUlasan } = useQuery({
     queryKey: queryKeys.comments(schoolId),
-    queryFn:  () => fetchComments(schoolId),
+    queryFn:  () => fetchComments(schoolId, token),
     enabled:  homeEnabled,
     staleTime: 1000 * 60 * 5,
   });
@@ -211,9 +219,9 @@ export default function ScannerPage() {
   const loadingData = {
     announcements: loadingAnnouncements,
     news:          loadingNews,
-    tugas:         loadingTugas,
-    kelulusan:     loadingAlumni,
-    osis:          loadingOsis,
+    // tugas:         loadingTugas,
+    // kelulusan:     loadingAlumni,
+    // osis:          loadingOsis,
     ulasan:        loadingUlasan,
   };
 
@@ -328,7 +336,7 @@ export default function ScannerPage() {
     setStatus({ type: 'loading', msg: 'Mengambil Lokasi...' });
 
     if (!navigator.geolocation) {
-      setStatus({ type: 'error', msg: 'Browser tidak mendukung GPS' });
+      setStatus({ type: 'error', msg: 'Nyalakan dahulu GPS/Location HP' });
       return;
     }
 
@@ -374,7 +382,7 @@ export default function ScannerPage() {
       (error) => {
         let msg = 'Gagal mendapatkan lokasi';
         if (error.code === 1) msg = 'Mohon izinkan akses lokasi (GPS)';
-        if (error.code === 3) msg = 'Waktu pengambilan lokasi habis';
+        if (error.code === 3) msg = 'Aktifkan lokasi HP anda dahulu';
         setStatus({ type: 'error', msg });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -435,6 +443,62 @@ export default function ScannerPage() {
       await handleAbsensiSekolah(qrData);
     }
   };
+
+
+  // ─── Request Location Permission Early ─────────────────────────────────────
+  const requestLocationPermission = async () => {
+    if (!navigator.geolocation) {
+      toast.error('Browser Anda tidak mendukung Geolocation');
+      return false;
+    }
+
+    try {
+      // Ini akan memunculkan popup izin lokasi secara otomatis
+      await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            console.log('✅ Location permission granted');
+            resolve(position);
+          },
+          (error) => {
+            console.warn('Location permission denied or error:', error);
+            let message = 'Gagal mendapatkan izin lokasi';
+            
+            if (error.code === error.PERMISSION_DENIED) {
+              message = 'Izin lokasi ditolak. Absensi memerlukan akses GPS.';
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+              message = 'Lokasi tidak tersedia.';
+            } else if (error.code === error.TIMEOUT) {
+              message = 'Waktu permintaan lokasi habis.';
+            }
+            
+            toast.error(message, { duration: 5000 });
+            reject(error);
+          },
+          { 
+            enableHighAccuracy: true, 
+            timeout: 8000, 
+            maximumAge: 0 
+          }
+        );
+      });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  };
+
+  // Request location permission as early as possible
+  useEffect(() => {
+    if (!token) return;
+
+    // Request izin lokasi saat component mount atau saat user sudah login
+    const timer = setTimeout(() => {
+      requestLocationPermission();
+    }, 1500); // beri sedikit delay agar tidak bentrok dengan request kamera
+
+    return () => clearTimeout(timer);
+  }, [token]);
 
   // ─── QR Scanner (absensi harian) ─────────────────────────────────────────
   useEffect(() => {
@@ -569,11 +633,11 @@ export default function ScannerPage() {
 
   // ─── Menu items ───────────────────────────────────────────────────────────
   const MENU_ITEMS = [
-    { id: 'tugas',      label: 'Tugas',      icon: BookOpen,     color: 'from-blue-600 to-blue-500',       badge: '3' },
+    // { id: 'tugas',      label: 'Tugas',      icon: BookOpen,     color: 'from-blue-600 to-blue-500',       badge: '3' },
     { id: 'pengumuman', label: 'Pengumuman', icon: Megaphone,    color: 'from-orange-600 to-orange-500',   badge: '2' },
     { id: 'berita',     label: 'Berita',     icon: Newspaper,    color: 'from-emerald-600 to-emerald-500', badge: undefined },
-    { id: 'kelulusan',  label: 'Kelulusan',  icon: GraduationCap,color: 'from-purple-600 to-purple-500',   badge: undefined },
-    { id: 'osis',       label: 'OSIS',       icon: Users,        color: 'from-rose-600 to-rose-500',       badge: undefined },
+    // { id: 'kelulusan',  label: 'Kelulusan',  icon: GraduationCap,color: 'from-purple-600 to-purple-500',   badge: undefined },
+    // { id: 'osis',       label: 'OSIS',       icon: Users,        color: 'from-rose-600 to-rose-500',       badge: undefined },
     { id: 'ulasan',     label: 'Ulasan',     icon: Star,         color: 'from-amber-600 to-amber-500',     badge: undefined },
     { id: 'login-qr',  label: 'Login QR',   icon: QrCode,       color: 'from-cyan-600 to-cyan-500',       badge: null },
   ];
@@ -585,9 +649,9 @@ export default function ScannerPage() {
         {
           label: 'Hadir',
           value: history.filter((d: any) => d.status === 'Terlambat' || d.status === 'Hadir').length,
-          sub: 'hari ini',
+          sub: '',
         },
-        { label: 'Tugas', value: tugas.length, sub: 'belum dikumpul' },
+        // { label: 'Tugas', value: tugas.length, sub: '' },
         {
           label: 'Presensi',
           value: `${Math.round((history.filter((d: any) => d.status === 'Hadir').length / 22) * 100)}%`,
@@ -598,7 +662,7 @@ export default function ScannerPage() {
         {
           label: 'Hadir',
           value: history.filter((d: any) => d.status === 'Terlambat' || d.status === 'Hadir').length,
-          sub: 'hari ini',
+          sub: '',
         },
       ];
 
@@ -835,8 +899,8 @@ export default function ScannerPage() {
                     <label className={inputClassLabel('gender')}>Gender</label>
                     <select value={profileForm.gender || ''} onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })} className={inputClass('gender')}>
                       <option value="">Pilih Gender</option>
-                      <option value="Laki-laki">Laki-laki</option>
-                      <option value="Perempuan">Perempuan</option>
+                      <option className='text-black' value="Laki-laki">Laki-laki</option>
+                      <option className='text-black' value="Perempuan">Perempuan</option>
                     </select>
                   </div>
                   <div className="flex flex-col">
@@ -922,9 +986,9 @@ export default function ScannerPage() {
               <div className="max-h-[60vh] overflow-y-auto px-1">
                 {activeMenu === 'pengumuman' && <AnnouncementContent items={announcements} loading={loadingAnnouncements} error={errorAnnouncements} />}
                 {activeMenu === 'berita'     && <NewsContent          items={news}          loading={loadingNews}          error={errorNews} />}
-                {activeMenu === 'tugas'      && <TugasContent         items={tugas}          loading={loadingTugas}         error={errorTugas} />}
-                {activeMenu === 'kelulusan'  && <KelulusanContent     items={alumniData}     loading={loadingAlumni}        error={errorAlumni} />}
-                {activeMenu === 'osis'       && <OsisContent          data={osisData}        loading={loadingOsis}          error={errorOsis} />}
+                {/* {activeMenu === 'tugas'      && <TugasContent         items={tugas}          loading={loadingTugas}         error={errorTugas} />} */}
+                {/* {activeMenu === 'kelulusan'  && <KelulusanContent     items={alumniData}     loading={loadingAlumni}        error={errorAlumni} />} */}
+                {/* {activeMenu === 'osis'       && <OsisContent          data={osisData}        loading={loadingOsis}          error={errorOsis} />} */}
                 {activeMenu === 'ulasan'     && (
                   <UlasanContent
                     comments={comments}
@@ -993,7 +1057,7 @@ export default function ScannerPage() {
 
       {/* Master Wrapper */}
       <div className="relative w-screen md:w-[32.3vw] h-[82vh] my-auto mx-auto overflow-auto">
-        {activeTab === 'scan'    && <ScanView status={status} />}
+        {activeTab === 'scan'    && <ScanView status={status} onSwitchToFaceScan={() => setActiveTab('face')} />}
         {activeTab === 'face' && <FaceView />}
         {activeTab === 'barcode' && (
           <BarcodeView

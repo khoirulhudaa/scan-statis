@@ -18,6 +18,7 @@ interface LatestAnnouncementsProps {
   onSelectAnnouncement: (ann: Announcement) => void;
 }
 
+
 export default function LatestAnnouncements({
   announcements,
   loading,
