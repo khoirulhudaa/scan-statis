@@ -3,6 +3,9 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale/id';
 import { Html5Qrcode } from 'html5-qrcode';
 import {
+  Activity,
+  File,
+  HeartHandshake,
   LogOut,
   Megaphone,
   Newspaper,
@@ -28,6 +31,11 @@ import UlasanContent from './cmoponents/UlasanContent';
 import WelcomeBanner from './cmoponents/WelcomeBanner';
 import { useScannerState } from './hooks/useScannerState';
 import axiosInstance from './utils/axiosInstance';
+import { onMessageListener, requestForToken } from './lib/firebase';
+import axios from 'axios';
+import IzinView from './cmoponents/izinView';
+import AktivitasView from './cmoponents/aktivitasView';
+import BiroJodohView from './cmoponents/biroJodohView';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const BASE_URL_SCHOOL = 'https://be-school.kiraproject.id';
@@ -77,27 +85,6 @@ const fetchNews = async (schoolId: number, token: string) => {
   return res.data.data ?? [];
 };
 
-// const fetchTugas = async (schoolId: number, token: string) => {
-//   const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/tugas?schoolId=${schoolId}`, {
-//     headers: { Authorization: `Bearer ${token}` },
-//   });
-//   return res.data.data ?? [];
-// };
-
-// const fetchOsis = async (schoolId: number, token: string) => {
-//   const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/osis?schoolId=${schoolId}`, {
-//     headers: { Authorization: `Bearer ${token}` },
-//   });
-//   return res.data.data ?? null;
-// };
-
-// const fetchAlumni = async (schoolId: number, token: string) => {
-//   const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/alumni?schoolId=${schoolId}`, {
-//     headers: { Authorization: `Bearer ${token}` },
-//   });
-//   return res.data.data ?? [];
-// };
-
 const fetchComments = async (schoolId: number, token: string) => {
   const res = await axiosInstance.get(`${BASE_URL_SCHOOL}/rating?schoolId=${schoolId}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -141,10 +128,6 @@ export default function ScannerPage() {
   // ─── Derive schoolId ────────────────────────────────────────────────────────
   const schoolId: number = Number(userProfile.schoolId || userProfile.school_id || 0);
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // QUERIES
-  // ════════════════════════════════════════════════════════════════════════════
-
   // 1. Attendance history
   const {
     data:    history        = [],
@@ -170,6 +153,52 @@ export default function ScannerPage() {
   // 3–8. Home data (only when home tab is active & schoolId is available)
   const homeEnabled = activeTab === 'home' && !!schoolId && !!token;
 
+  const sendLocationToServer = () => {
+    if (!navigator.geolocation || !token || !userProfile?.id) return;
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          await axiosInstance.post(
+            `${BASE_URL}/aktivitas/update-location`,
+            {
+              id: userProfile.id,
+              lat: latitude,
+              lng: longitude,
+            },
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+
+          console.log('📍 Lokasi berhasil dikirim');
+        } catch (err) {
+          console.error('❌ Gagal kirim lokasi', err);
+        }
+      },
+      (error) => {
+        console.warn('❌ Gagal ambil lokasi', error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 0,
+      }
+    );
+  };
+
+  useEffect(() => {
+    if (!token || !userProfile?.id) return;
+
+    const timer = setTimeout(() => {
+      sendLocationToServer();
+    }, 2000); // biar tidak bentrok dengan permission
+
+    return () => clearTimeout(timer);
+  }, [token, userProfile?.id]);
+
   const { data: announcements = [], isLoading: loadingAnnouncements, isError: errorAnnouncements } = useQuery({
     queryKey: queryKeys.announcements(schoolId),
     queryFn:  () => fetchAnnouncements(schoolId, token),
@@ -183,27 +212,6 @@ export default function ScannerPage() {
     enabled:  homeEnabled,
     staleTime: 1000 * 60 * 5,
   });
-
-  // const { data: tugas = [], isLoading: loadingTugas, isError } = useQuery({
-  //   queryKey: queryKeys.tugas(schoolId),
-  //   queryFn:  () => fetchTugas(schoolId, token),
-  //   enabled:  homeEnabled,
-  //   staleTime: 1000 * 60 * 5,
-  // });
-
-  // const { data: osisData = null, isLoading: loadingOsis, isError: errorOsis } = useQuery({
-  //   queryKey: queryKeys.osis(schoolId),
-  //   queryFn:  () => fetchOsis(schoolId, token),
-  //   enabled:  homeEnabled,
-  //   staleTime: 1000 * 60 * 10,
-  // });
-
-  // const { data: alumniData = [], isLoading: loadingAlumni, isError: errorAlumni } = useQuery({
-  //   queryKey: queryKeys.alumni(schoolId),
-  //   queryFn:  () => fetchAlumni(schoolId, token),
-  //   enabled:  homeEnabled,
-  //   staleTime: 1000 * 60 * 10,
-  // });
 
   const { data: reviewData, isLoading: loadingUlasan, isError: errorUlasan } = useQuery({
     queryKey: queryKeys.comments(schoolId),
@@ -219,11 +227,35 @@ export default function ScannerPage() {
   const loadingData = {
     announcements: loadingAnnouncements,
     news:          loadingNews,
-    // tugas:         loadingTugas,
-    // kelulusan:     loadingAlumni,
-    // osis:          loadingOsis,
     ulasan:        loadingUlasan,
   };
+
+  useEffect(() => {
+    if (token) {
+      // 1. Minta token FCM
+      requestForToken().then((fcmToken: any) => {
+        if (fcmToken) {
+          // 2. Kirim fcmToken ke backend Anda agar backend bisa 
+          // mendaftarkan token ini ke Topic messaging yang boss Anda buat
+          axios.post('https://be-school.kiraproject.id/scan-qr/update-fcm-token', { fcmToken }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        }
+      });
+
+      // 3. Dengarkan notifikasi jika web sedang terbuka (Foreground)
+      const startListener = () => {
+        onMessageListener().then((payload: any) => {
+          toast.success(`${payload.notification.title}: ${payload.notification.body}`, {
+            icon: '🔔', duration: 6000
+          });
+          startListener(); // re-register
+        }).catch(() => setTimeout(startListener, 3000));
+      };
+      startListener();
+
+    }
+  }, [token]);
 
   // 1. Update profile biodata
   const updateProfileMutation = useMutation({
@@ -634,12 +666,15 @@ export default function ScannerPage() {
   // ─── Menu items ───────────────────────────────────────────────────────────
   const MENU_ITEMS = [
     // { id: 'tugas',      label: 'Tugas',      icon: BookOpen,     color: 'from-blue-600 to-blue-500',       badge: '3' },
-    { id: 'pengumuman', label: 'Pengumuman', icon: Megaphone,    color: 'from-orange-600 to-orange-500',   badge: '2' },
+    { id: 'pengumuman', label: 'Pengumuman', icon: Megaphone,    color: 'from-orange-600 to-orange-500',   badge: undefined },
     { id: 'berita',     label: 'Berita',     icon: Newspaper,    color: 'from-emerald-600 to-emerald-500', badge: undefined },
     // { id: 'kelulusan',  label: 'Kelulusan',  icon: GraduationCap,color: 'from-purple-600 to-purple-500',   badge: undefined },
     // { id: 'osis',       label: 'OSIS',       icon: Users,        color: 'from-rose-600 to-rose-500',       badge: undefined },
     { id: 'ulasan',     label: 'Ulasan',     icon: Star,         color: 'from-amber-600 to-amber-500',     badge: undefined },
     { id: 'login-qr',  label: 'Login QR',   icon: QrCode,       color: 'from-cyan-600 to-cyan-500',       badge: null },
+    { id: 'aktivitas',  label: 'Aktivitas',  icon: Activity,       color: 'from-green-600 to-green-500',     badge: undefined },
+    { id: 'birojodoh',  label: 'Biro Jodoh', icon: HeartHandshake, color: 'from-pink-600 to-pink-500',       badge: undefined },
+    { id: 'izin',  label: 'Izin', icon: File, color: 'from-cyan-600 to-cyan-500',       badge: undefined },
   ];
 
   const isSiswa = userProfile.role === 'siswa';
@@ -666,9 +701,6 @@ export default function ScannerPage() {
         },
       ];
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // HomePage (inner component)
-  // ════════════════════════════════════════════════════════════════════════════
   function HomePage({ userProfile = { name: 'Ahmad Fauzi', role: 'siswa', kelas: 'XII IPA 2' } }: any) {
     const queryClient = useQueryClient();
     const [activeMenu,       setActiveMenu]       = useState<string | null>(null);
@@ -770,15 +802,6 @@ export default function ScannerPage() {
     });
 
     useEffect(() => {
-      // if (userProfile) {
-      //   const empty    = getEmptyFields(userProfile);
-      //   const _isSiswa = userProfile.role === 'siswa';
-      //   if (empty.length > 0 && _isSiswa) {
-      //     setProfileForm(userProfile);
-      //     setEmptyFields(empty);
-      //     setShowProfileModal(true);
-      //   }
-      // }
       if (!userProfile) return;
 
       const empty = getEmptyFields(userProfile);
@@ -839,7 +862,14 @@ export default function ScannerPage() {
             loadingData={loadingData}
             searchQuery={searchQuery}
             handleClearSearch={() => setSearchQuery('')}
-            onMenuClick={(id) => setActiveMenu(id)}
+            onMenuClick={(id) => {
+              if (id.startsWith('tab:')) {
+                const tab: any = id.replace('tab:', '');
+                setActiveTab(tab);
+              } else {
+                setActiveMenu(id);
+              }
+            }}
             token={token || undefined}
             setShowLoginQrScanner={setShowLoginQrScanner}
             setLoginQrStatus={setLoginQrStatus}
@@ -1020,15 +1050,6 @@ export default function ScannerPage() {
     <div className="h-screen bg-[#020617] text-white flex flex-col justify-center items-center font-sans relative">
       <Toaster position="top-right" richColors />
 
-      {/* Background Grid */}
-      <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-        }}
-      />
-
       {/* Floating Header */}
       <div className="absolute top-0 h-[8vh] left-0 right-0 md:w-[32.3vw] mx-auto z-20 pointer-events-none">
         <div className="w-screen md:w-full h-full mx-auto flex items-center bg-slate-900 px-4 border border-white/[0.05] shadow-2xl pointer-events-auto">
@@ -1086,6 +1107,27 @@ export default function ScannerPage() {
             handleUpdateProfile={handleUpdateProfile}
             loadingProfile={updateProfileMutation.isPending}
             photoLoading={uploadPhotoMutation.isPending}
+          />
+        )}
+        {activeTab === 'izin' && (
+          <div className="min-h-[60vh] max-h-[90vh] overflow-y-auto">
+            <IzinView siswaId={Number(userProfile.id)} token={token} />
+          </div>
+        )}
+        {activeTab === 'aktivitas' && (
+          <AktivitasView
+            siswaId={Number(userProfile.id)}
+            token={token}
+            userProfile={userProfile}
+          />
+        )}
+        
+        {activeTab === 'birojodoh' && (
+          <BiroJodohView
+            siswaId={Number(userProfile.id)}
+            schoolId={schoolId}
+            token={token}
+            userProfile={userProfile}
           />
         )}
 

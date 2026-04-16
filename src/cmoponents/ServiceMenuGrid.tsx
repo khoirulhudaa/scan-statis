@@ -53,6 +53,7 @@ export default function ServiceMenuGrid({
               <button
                 key={item.id}
                 onClick={() => {
+                  // ✅ Handle login QR
                   if (item.id === 'login-qr') {
                     if (!token) {
                       toast.error('Anda harus login terlebih dahulu');
@@ -62,9 +63,19 @@ export default function ServiceMenuGrid({
                     setScannerActive(false);
                     setLoginQrMessage('');
                     setShowLoginQrScanner(true);
-                  } else {
-                    onMenuClick(item.id);
+                    return;
                   }
+
+                  // ✅ Menu yang harus pindah tab (BUKAN modal)
+                  const TAB_MENU = ['izin', 'aktivitas', 'birojodoh'];
+
+                  if (TAB_MENU.includes(item.id)) {
+                    onMenuClick(`tab:${item.id}`); // kasih prefix biar beda
+                    return;
+                  }
+
+                  // ✅ Default → modal
+                  onMenuClick(item.id);
                 }}
                 disabled={isLoading}
                 className={`w-full cursor-pointer active:scale-[0.96] hover:brightness-80 flex flex-col items-center gap-2 transition-transform ${

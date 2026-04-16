@@ -41,8 +41,8 @@
 import { BarcodeIcon, ClipboardList, Home, ScanIcon, User } from 'lucide-react';
 
 interface BottomTabNavigatorProps {
-  activeTab: 'home' | 'scan' | 'barcode' | 'face' | 'history' | 'profile';
-  setActiveTab: (tab: 'home' | 'scan' | 'barcode' | 'face' | 'history' | 'profile') => void;
+  activeTab: 'home' | 'scan' | 'barcode' | 'izin' | 'aktivitas'| 'birojodoh' |  'face' | 'history' | 'profile';
+  setActiveTab: (tab: 'home' | 'scan' | 'barcode' | 'izin' | 'aktivitas'| 'birojodoh' | 'face' | 'history' | 'profile') => void;
   role?: string; // Tambahkan prop role
 }
 

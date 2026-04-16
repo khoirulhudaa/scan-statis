@@ -35,13 +35,13 @@ export default function WelcomeBanner({ userProfile, quickStats }: WelcomeBanner
   return (
     <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-5 shadow-xl shadow-blue-900/30">
       {/* grid texture */}
-      <div
+      {/* <div
         className="absolute inset-0 opacity-[0.06]"
         style={{
           backgroundImage: `linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`,
           backgroundSize: '24px 24px',
         }}
-      />
+      /> */}
 
       <div className="relative z-10 flex justify-between items-start">
         <div>
